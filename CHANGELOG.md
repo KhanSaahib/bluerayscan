@@ -98,6 +98,8 @@ changes.
 
 ### Changed
 
+- **The SARIF uploader now uses CodeQL Action v4 on Node.js 24**, pinned to
+  the audited full commit SHA rather than a mutable tag.
 - **The code-scanning upload excludes the deliberately vulnerable test
   corpus**, matching the self-scan gate. Type-union placeholder matching is
   also linear-time, removing the CodeQL regular-expression warning without
