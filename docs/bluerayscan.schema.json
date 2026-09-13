@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/KhanSaahib/bluerayscan/main/docs/bluerayscan.schema.json",
+  "title": "BlueRayScan project configuration",
+  "description": "Project defaults for bluerayscan, read from .bluerayscan.json beside the scanned tree. Every key here is a default: anything passed on the command line wins, so the file can never stop someone auditing their own repository more strictly than the project usually does. An unknown key is an error rather than a shrug — a typo in a security tool's configuration means a project believes it configured something it did not.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "exclude": {
+      "description": "Extra file or directory globs to skip, in the .gitignore dialect. Equivalent to passing --exclude GLOB on the command line (repeatable there). Example: [\"vendor\", \"testdata\", \"charts/vendor/**\"].",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": false
+    },
+    "fail_on": {
+      "description": "Exit non-zero when a finding reaches this severity. Use \"none\" to report without ever failing. Equivalent to --fail-on on the command line. Default when unset: \"medium\".",
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical", "none"]
+    },
+    "min_severity": {
+      "description": "Hide findings below this severity. Equivalent to --min-severity on the command line. Default when unset: \"low\".",
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"]
+    },
+    "min_confidence": {
+      "description": "Hide findings below this confidence. Equivalent to --min-confidence on the command line. Default when unset: \"low\".",
+      "type": "string",
+      "enum": ["low", "medium", "high"]
+    },
+    "baseline": {
+      "description": "Path to a baseline file (relative to this config file). Findings recorded in the baseline are treated as accepted; the run fails only on new ones. Equivalent to --baseline FILE on the command line. Typically .bluerayscan-baseline.json.",
+      "type": "string",
+      "minLength": 1
+    },
+    "max_file_size": {
+      "description": "Read files up to this size. Accepts a plain number of bytes or a K/M/G suffix (e.g. \"2M\", \"500k\", \"8M\"). The default when unset is 2 MB. Equivalent to --max-file-size SIZE on the command line.",
+      "type": "string",
+      "pattern": "^[1-9][0-9]*([kKmMgG][bB]?|[bB])?$"
+    },
+    "sort": {
+      "description": "Order findings worst-first (\"severity\", the default) or grouped by file (\"path\"). Equivalent to --sort on the command line.",
+      "type": "string",
+      "enum": ["severity", "path"]
+    },
+    "disable": {
+      "description": "Rule ids or family prefixes to switch off globally. The same syntax as --disable on the command line and the # bluerayscan: ignore[RULE] marker: exact ids (\"K8S004\") and glob prefixes (\"DC*\") both work. A disabled rule is still counted in the summary; an id that matches no rule is called out. Use paths for per-subtree disabling instead of silencing a rule everywhere.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": false
+    },
+    "gitignore": {
+      "description": "Whether to honour .gitignore files (true, the default) or scan git-ignored files too (false). Setting this to false is equivalent to passing --no-gitignore on the command line.",
+      "type": "boolean"
+    },
+    "example_allowlist": {
+      "description": "Whether to suppress credentials that are publicly documented vendor or RFC examples (true, the default) or report them too (false). Setting this to false is equivalent to passing --no-example-allowlist on the command line.",
+      "type": "boolean"
+    },
+    "paths": {
+      "description": "Per-subtree overrides keyed by a .gitignore-dialect glob. Each value is an object whose only supported key is \"disable\". Use this to switch rules off for one tree — a vendored chart, an examples directory, a fixtures tree — rather than everywhere.",
+      "type": "object",
+      "additionalProperties": {
+        "description": "Settings that apply to all files whose path matches this glob.",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "disable": {
+            "description": "Rule ids or family prefixes to switch off for files under this glob. Same syntax as the top-level disable key.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": false
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "fail_on": "high",
+      "min_confidence": "medium",
+      "exclude": ["vendor", "testdata"],
+      "disable": ["K8S004", "DC006"]
+    },
+    {
+      "paths": {
+        "examples/**": { "disable": ["K8S*"] },
+        "charts/vendor/**": { "disable": ["*"] }
+      }
+    },
+    {
+      "fail_on": "high",
+      "baseline": ".bluerayscan-baseline.json",
+      "max_file_size": "8M",
+      "sort": "path",
+      "gitignore": true,
+      "example_allowlist": true,
+      "exclude": ["fixtures"],
+      "disable": [],
+      "min_severity": "low",
+      "min_confidence": "low",
+      "paths": {
+        "tests/fixtures/**": { "disable": ["SEC*"] }
+      }
+    }
+  ]
+}

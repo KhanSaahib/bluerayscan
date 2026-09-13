@@ -386,6 +386,36 @@ this whole tool exists to avoid. An id that matches no rule is called out too:
 that typo leaves the rule switched on, which is the safe direction but not the
 one you meant.
 
+### Editor validation and autocomplete
+
+A JSON Schema for `.bluerayscan.json` lives at
+[`docs/bluerayscan.schema.json`](docs/bluerayscan.schema.json). It covers every
+supported setting, rejects unknown keys with `additionalProperties: false`
+(matching the runtime loader), and describes allowed values for each field. No
+runtime dependency is involved — the file is for editors only.
+
+**VS Code** — add to `.vscode/settings.json`:
+
+```json
+{
+  "json.schemas": [
+    {
+      "fileMatch": [".bluerayscan.json", ".repo-sentinel.json"],
+      "url": "./docs/bluerayscan.schema.json"
+    }
+  ]
+}
+```
+
+**JetBrains IDEs** — open *Preferences → Languages & Frameworks → Schemas and
+DTDs → JSON Schema Mappings*, add a mapping pointing at
+`docs/bluerayscan.schema.json` with the file pattern `.bluerayscan.json`.
+
+The schema can also be registered with the
+[JSON Schema Store](https://www.schemastore.org/); until then the local path
+above gives the same experience without a network request.
+
+
 ## Baselines
 
 A scanner introduced to a repository that has been running for years reports its
