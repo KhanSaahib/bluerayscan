@@ -51,9 +51,10 @@ class TestSchemaStructure(unittest.TestCase):
         self.assertEqual(self.schema.get("type"), "object")
 
     def test_properties_match_config_keys_exactly(self):
-        schema_keys = set(self.schema.get("properties", {}))
+        schema_keys = set(self.schema.get("properties", {})) - {"$schema"}
         config_keys = set(config._KEYS)
         self.assertEqual(schema_keys, config_keys)
+        self.assertIn("$schema", self.schema.get("properties", {}))
 
     def test_root_rejects_additional_properties(self):
         self.assertIs(self.schema.get("additionalProperties"), False)

@@ -415,7 +415,6 @@ The schema can also be registered with the
 [JSON Schema Store](https://www.schemastore.org/); until then the local path
 above gives the same experience without a network request.
 
-
 ## Baselines
 
 A scanner introduced to a repository that has been running for years reports its

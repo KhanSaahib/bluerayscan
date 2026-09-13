@@ -36,6 +36,17 @@ class TestLoading(unittest.TestCase):
             path = write(root, {"fail_on": "critical", "disable": ["DK002"]})
             self.assertEqual(config.load(path), {"fail_on": "critical", "disable": ["DK002"]})
 
+    def test_ignores_json_schema_metadata(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = write(
+                root,
+                {
+                    "$schema": "https://example.invalid/bluerayscan.schema.json",
+                    "fail_on": "high",
+                },
+            )
+            self.assertEqual(config.load(path), {"fail_on": "high"})
+
     def test_an_unknown_setting_is_an_error_not_a_shrug(self):
         # A typo in a security tool's configuration should be loud. Ignoring it
         # means a project believes it configured something it did not.
@@ -43,6 +54,12 @@ class TestLoading(unittest.TestCase):
             path = write(root, {"fail-on": "critical"})
             with self.assertRaises(config.ConfigError) as caught:
                 config.load(path)
+            self.assertIn("unknown setting", str(caught.exception))
+
+    def test_an_unknown_dollar_setting_is_an_error(self):
+        with tempfile.TemporaryDirectory() as root:
+            with self.assertRaises(config.ConfigError) as caught:
+                config.load(write(root, {"$unknown": "value"}))
             self.assertIn("unknown setting", str(caught.exception))
 
     def test_wrong_types_are_rejected(self):

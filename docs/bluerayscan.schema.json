@@ -6,6 +6,10 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "$schema": {
+      "description": "JSON Schema metadata identifying the schema used to validate this document; it is not a bluerayscan setting.",
+      "type": "string"
+    },
     "exclude": {
       "description": "Extra file or directory globs to skip, in the .gitignore dialect. Equivalent to passing --exclude GLOB on the command line (repeatable there). Example: [\"vendor\", \"testdata\", \"charts/vendor/**\"].",
       "type": "array",

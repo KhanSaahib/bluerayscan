@@ -77,6 +77,7 @@ def load(path: str) -> dict:
     if not isinstance(payload, dict):
         raise ConfigError(f"{path!r} should hold a JSON object")
 
+    payload.pop("$schema", None)
     unknown = sorted(set(payload) - set(_KEYS))
     if unknown:
         known = ", ".join(sorted(_KEYS))
