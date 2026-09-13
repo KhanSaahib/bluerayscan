@@ -97,6 +97,41 @@ Two consequences worth knowing before touching a rule:
 If you find yourself lowering a severity because a rule is unreliable, lower
 the confidence instead. That is what it is for.
 
+### Findings left alone on purpose
+
+The precision programme reads every finding in a repository the corpus has
+never seen and fixes what is wrong. Some of what it reads is right, and some is
+wrong in a way no narrow fix reaches. Both get written down, so the next person
+reading the same output does not re-derive the argument.
+
+- **`check_hostname = False` inside `if not validate_certs:`** (ansible). A
+  correct finding about a line that is guarded. Telling them apart needs
+  control flow, which no family here has.
+- **A MIME database entry describing a PEM file's magic bytes** (nextcloud,
+  `freedesktop.org.xml`). There is no narrow fix, and failing towards reporting
+  is the right direction for a private key.
+- **Sixty `verify=False` in test trees** (airflow). Every one is a test
+  asserting that the parameter is forwarded to the AWS hook, and every one is
+  already at medium confidence because of where it sits, so
+  `--min-confidence high` does not show them. The rule is right, the
+  downgrade is right, and the volume is a property of the repository.
+- **A connection string in a Python docstring** (airflow, `kylin_cube.py`:
+  `kylin://ADMIN:KYLIN@sandbox`, right after "for example:"). <!-- bluerayscan: ignore[SEC020] -->
+  Documentation inside a source file, which the path-based downgrade cannot
+  see. The marker on the line above is this entry proving its own point. Knowing it is a docstring needs multi-line state in the secret scanner,
+  and a credential in a URL is worth failing towards reporting.
+- **Sixteen `api_key="echargetoday"`** (home-assistant, `growatt_server`). The
+  vendor's own API field names, assigned to a dataclass field called
+  `api_key`. Separating them from the real embedded key three files away --
+  `API_KEY = "k6Qa...lCC3"`, which the same rule found and which is a true
+  positive -- means telling a generated string from an English compound. That
+  is the near-miss measurement all over again, and it came out at 172 findings
+  and one worth reading.
+- **Twelve JSON Web Tokens in fixture trees** (home-assistant). Expired
+  specimens, and the rule reports them at high confidence because a JWT is a
+  JWT. Reading the `exp` claim would silence them, and would also silence a
+  live token that happens to have expired since it leaked.
+
 ## Five CI systems, one bug
 
 GitHub expands `${{ github.event.issue.title }}`, GitLab expands

@@ -54,7 +54,31 @@ _BASE64_RUNS = (
 _SERVICE_ACCOUNT_TYPE = re.compile(r'"type"\s*:\s*"service_account"')
 #: The key field *and its value*: a chart shipping a template service account
 #: with "private_key": "" is showing the shape, not leaking the key.
-_SERVICE_ACCOUNT_KEY = re.compile(r'"private_key(?:_id)?"\s*:\s*"(?P<value>[^"]*)"')
+_SERVICE_ACCOUNT_KEY = re.compile(
+    r'"private_key(?P<id>_id)?"\s*:\s*"(?P<value>[^"]*)"'
+)
+#: What Google puts in ``private_key``, every time: a PEM block. Requiring it
+#: is what separates a leaked key file from a fixture that names the same
+#: fields -- airflow's is ``{"type": "service_account", "private_key":
+#: "PRIVATE"}``, and seven characters cannot be a key however the field is
+#: labelled.
+_SERVICE_ACCOUNT_MATERIAL = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")
+#: ``private_key_id`` is a forty-character hex fingerprint rather than key
+#: material, and it is published in the account's JWKS, so on its own it is not
+#: the leak. It stays a signal because a file carrying a real one is a real key
+#: file with the key redacted out of it, which is worth a second look -- but it
+#: has to be a real one, not a word.
+_SERVICE_ACCOUNT_KEY_ID_LENGTH = 20
+
+
+def _is_key_material(match: "re.Match[str]") -> bool:
+    """True when the matched field holds what that field is supposed to hold."""
+    value = match.group("value")
+    if looks_like_placeholder(value):
+        return False
+    if match.group("id"):
+        return len(value) >= _SERVICE_ACCOUNT_KEY_ID_LENGTH
+    return _SERVICE_ACCOUNT_MATERIAL.search(value) is not None
 
 #: Quoted assignment: ``api_key = "...."`` in any language that quotes strings.
 _QUOTED_ASSIGNMENT = re.compile(
@@ -505,14 +529,18 @@ def scan_document(path: str, text: str) -> Iterator[Finding]:
     line two and ``"private_key"`` on line five are the same object. That pair
     is a Google service account key file, which is a credential with no expiry
     and usually far more authority than whatever needed it.
+
+    The pair is not enough on its own, though. The field has to hold what that
+    field holds in a real one -- a PEM block in ``private_key``, a forty-hex
+    fingerprint in ``private_key_id`` -- because the field names are also what
+    a fixture writes when it wants something shaped like a service account and
+    nothing more. Airflow's is ``"private_key": "PRIVATE"``, seven characters,
+    and it was reported at critical severity and high confidence.
     """
     type_match = _SERVICE_ACCOUNT_TYPE.search(text)
     if type_match is None:
         return
-    if not any(
-        match.group("value") and not looks_like_placeholder(match.group("value"))
-        for match in _SERVICE_ACCOUNT_KEY.finditer(text)
-    ):
+    if not any(_is_key_material(match) for match in _SERVICE_ACCOUNT_KEY.finditer(text)):
         return
     yield Finding(
         rule_id="SEC021",

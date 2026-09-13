@@ -33,7 +33,14 @@ _INPUT_EXPR = re.compile(r"\$\{\{\s*inputs\.(?P<name>[\w-]+)[^}]*\}\}")
 
 _USES = re.compile(r"^\s*(?:-\s*)?uses:\s*['\"]?(?P<ref>[^\s'\"#]+)")
 _SHA_PIN = re.compile(r"^[0-9a-f]{40}$")
-_LOCAL_ACTION = re.compile(r"^(?:\./|docker://)")
+#: A reference that names a path in this repository rather than a coordinate in
+#: somebody's registry. ``./`` is relative to the workspace and ``$/`` to the
+#: repository root -- the second is what a composite action nested inside
+#: another one has to use, because ``./`` there resolves against the caller.
+#: Home Assistant writes it twenty-seven times and writes ``./`` never, so
+#: every one of those was reported as an unpinned action, advising a commit SHA
+#: for a path that cannot have one.
+_LOCAL_ACTION = re.compile(r"^(?:\./|\$/|docker://)")
 _RUN_START = re.compile(r"^(?P<indent>\s*)(?:-\s*)?run:\s*(?P<inline>.*)$")
 _TOP_LEVEL_PERMISSIONS = re.compile(r"^permissions:")
 _PERMISSIONS = re.compile(r"^\s*permissions:\s*(?P<inline>\S*)")

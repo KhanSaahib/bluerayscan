@@ -114,6 +114,34 @@ class TestPrivateKeyBlocks(unittest.TestCase):
         line = 'header + "-----BEGIN PRIVATE KEY-----" + key + "-----END PRIVATE KEY-----"'
         self.assertNotIn("SEC004", self.scan(line))
 
+    def test_a_header_that_closes_its_own_literal_is_code_recognising_keys(self):
+        # From home-assistant/core, five of these in shipped source, every one
+        # reported at critical severity and high confidence:
+        # components/mqtt/config_flow.py, components/harbor/config_flow.py and
+        # components/weatherkit/config_flow.py. Base64 follows a real header,
+        # on the next line or after an escaped newline -- never a bare quote.
+        header = "-----BEGIN " + "PRIVATE KEY-----"
+        for line in (
+            f'    b"{header}" in data',
+            f'    return value.startswith("{header}")',
+            f"    header = '{header}'",
+            f"    const HEADER = `{header}`;",
+        ):
+            with self.subTest(line=line):
+                self.assertNotIn("SEC004", self.scan(line))
+
+    def test_an_escaped_newline_after_the_header_is_still_a_key(self):
+        # The one-line JSON spelling, which is how a key arrives inside a
+        # service account file. The quote is four characters further on.
+        header = "-----BEGIN " + "PRIVATE KEY-----"
+        line = f'"private_key": "{header}\\n{self.BODY}\\n-----END PRIVATE KEY-----"'
+        self.assertIn("SEC004", self.scan(line))
+
+    def test_a_header_alone_on_the_first_line_of_a_pem_file_is_a_key(self):
+        # Nothing at all after the header is the ordinary case, not the empty
+        # one: the body is on the lines below, where this rule cannot see it.
+        self.assertIn("SEC004", self.scan("-----BEGIN " + "RSA PRIVATE KEY-----"))
+
 
 class TestEntropyAssignments(unittest.TestCase):
     def test_flags_high_entropy_password(self):
@@ -663,6 +691,28 @@ class TestServiceAccountFiles(unittest.TestCase):
     def test_a_private_key_field_alone_is_not_a_service_account(self):
         text = self.document('  "private_key_id": "abc"')
         self.assertNotIn("SEC021", rule_ids(secrets.scan_text("other.json", text)))
+
+    def test_the_fields_without_the_material_are_a_fixture(self):
+        # From apache/airflow:
+        # providers/google/tests/unit/google/cloud/hooks/test_cloud_sql.py,
+        # which builds a keyfile_dict naming both fields, with the word
+        # PRIVATE where the key goes, to check that the file it writes is
+        # chmod 0600. Seven characters cannot be a key, and this was reported
+        # as a leaked key file at critical severity and high confidence.
+        text = self.document(
+            '  "type": "service' + '_account"',
+            '  "private_key": "PRIVATE"',
+        )
+        self.assertNotIn("SEC021", rule_ids(secrets.scan_text("test_x.py", text)))
+
+    def test_the_material_is_what_makes_it_a_key_file(self):
+        header = "-----BEGIN " + "PRIVATE KEY-----"
+        body = "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7VJTUt9Us8cKj"
+        text = self.document(
+            '  "type": "service' + '_account"',
+            f'  "private_key": "{header}\\n{body}\\n-----END PRIVATE KEY-----\\n"',
+        )
+        self.assertIn("SEC021", rule_ids(secrets.scan_text("sa.json", text)))
 
 
 if __name__ == "__main__":

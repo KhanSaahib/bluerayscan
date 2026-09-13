@@ -98,17 +98,32 @@ run of eight, or a word somebody typed are the three questions with no
 plausible false answer, and `--no-example-allowlist` reports them anyway --
 that flag exists to show what the scanner chose not to say.
 
-SEC004 asks one further question, because a PEM header is quoted far more
-often than it is committed: when the `-----END-----` marker is on the *same*
+SEC004 asks two further questions, because a PEM header is quoted far more
+often than it is committed. When the `-----END-----` marker is on the *same*
 line, the thing between the two is the key, and a dozen characters of
-placeholder is not one. A header with the body on the lines below it is the
-ordinary case and is always reported -- the rule reads one line at a time, so
-"cannot see the body" has to mean "assume it is real".
+placeholder is not one. And when a quote comes *immediately* after the header,
+the literal held the header and nothing else -- which is code that recognises
+keys rather than code that carries one: `value.startswith("-----BEGIN PRIVATE
+KEY-----")`, an HTML `placeholder` attribute, a line of documentation prose in
+backticks. Base64 follows a real header, on the next line or after an escaped
+newline, never a bare quote. Home Assistant has eleven of these, five of them
+in shipped source, and each was reported at critical severity and high
+confidence, which is the most expensive thing a scanner can get wrong.
+
+A header with the body on the lines below it is the ordinary case and is always
+reported -- the rule reads one line at a time, so "cannot see the body" has to
+mean "assume it is real".
 
 SEC021 and SEC022 are the two rules a line-at-a-time scanner cannot express.
 SEC021 reports a Google service account key file -- `"type": "service_account"`
-plus a private key field, neither of which means anything alone and no single
-line of which sees both. SEC022 decodes base64 runs and hands the result to the
+plus a private key field *holding what that field holds in a real one*, none of
+which means anything alone and no single line of which sees all three. The last
+part is what separates a key file from a fixture that names the same fields:
+Airflow's is the word `PRIVATE` in the `private_key` field, and seven
+characters cannot be a key however the field is labelled. So `private_key` has
+to carry a PEM block, and `private_key_id` -- a fingerprint that is published
+in the account's own JWKS, and not the leak on its own -- has to be long enough
+to be a real one. SEC022 decodes base64 runs and hands the result to the
 provider rules: encoding is not encryption, but it is enough to hide a
 credential from every rule that reads the line it sits on, which is most of
 what a kubeconfig or a CI variable is made of. Only the documented token shapes
@@ -201,6 +216,15 @@ A name that *labels* a credential is not a name that holds one, and both rules
 check: `credentialType` names a kind of credential, `secretName` names a
 Kubernetes Secret, `tokenPattern` is a regular expression. n8n assigns a
 credential type to a key called `credentialType` seven hundred times.
+
+The label word does not have to be last. `COOKIE_NAME_ACCESS_TOKEN` names the
+cookie the token travels in, and Home Assistant has four of those in shipped
+source, so the name is read as the *words* it was written from -- underscores,
+hyphens and camel-case humps all separate -- and a label word anywhere among
+them ends the question. One exception, and it is the reason the two lists are
+not one: `example` counts only as the last word. A name ending in it is a
+specimen, but `EXAMPLE_API_TOKEN` halfway down a settings file may well hold a
+value somebody pasted in, and losing that is worse than reporting it.
 
 A password *hash* is filtered too. `$2a$10$...`, `$argon2id$...` and their
 relatives are the output of hashing a password, which is the one thing that
@@ -357,6 +381,15 @@ gave you, and that one is reported at low. Both are still reported -- pinning
 everything is the advice, and an organisation that pins one and not the other
 has decided rather than forgotten -- but a workflow with eleven first-party
 tags in it should not read like eleven problems.
+
+A reference naming a path in the repository is not asked the question at all,
+because there is no commit to pin it to: `./` for a path relative to the
+workspace, `$/` for one relative to the repository root, and `docker://` for an
+image. The second matters more than it looks -- inside a composite action
+nested in another one, `./` resolves against the *caller*, so `$/` is the only
+form that works. Home Assistant writes it twenty-seven times and writes `./`
+never, and every one of the twenty-seven was reported as an action with no
+version, advising a commit SHA for a path that cannot have one.
 
 WF003 is the script-injection class: `${{ github.event.issue.title }}` inside a
 `run:` step is substituted into the shell command *before* the shell runs, so an

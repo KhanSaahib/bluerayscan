@@ -224,6 +224,32 @@ class TestNamesThatAreLabels(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertFalse(heuristics.is_secret_name(name))
 
+    def test_a_label_word_in_the_middle_ends_it_too(self):
+        # From home-assistant/core:
+        # components/keycloak/auth_manager/constants.py, where
+        # COOKIE_NAME_ACCESS_TOKEN = "_access_token" names the cookie the
+        # token travels in. The suffix test cannot see a label word that is
+        # not the last one.
+        for name in (
+            "COOKIE_NAME_ACCESS_TOKEN", "cookieNameAccessToken",
+            "SECRET_NAME_OVERRIDE", "token_field_index", "apiKeyLabelText",
+        ):
+            with self.subTest(name=name):
+                self.assertFalse(heuristics.is_secret_name(name))
+
+    def test_a_label_word_only_counts_as_a_whole_word(self):
+        # "namespace" is not "name", and NAMESPACE_TOKEN holds a token.
+        for name in ("NAMESPACE_TOKEN", "username_password", "typedSecret"):
+            with self.subTest(name=name):
+                self.assertTrue(heuristics.is_secret_name(name))
+
+    def test_example_is_a_suffix_and_not_a_middle_word(self):
+        # A name ending in "example" is a specimen. EXAMPLE_API_TOKEN in the
+        # middle of a settings file may well hold a value somebody pasted in,
+        # and losing that is worse than reporting it.
+        self.assertFalse(heuristics.is_secret_name("api_key_example"))
+        self.assertTrue(heuristics.is_secret_name("EXAMPLE_API_TOKEN"))
+
     def test_the_names_that_do_hold_one_are_untouched(self):
         for name in (
             "password", "api_key", "AUTH_TOKEN", "client_secret", "authHeader",
@@ -231,6 +257,15 @@ class TestNamesThatAreLabels(unittest.TestCase):
         ):
             with self.subTest(name=name):
                 self.assertTrue(heuristics.is_secret_name(name))
+
+    def test_the_words_a_name_was_written_from(self):
+        self.assertEqual(
+            heuristics.name_words("COOKIE_NAME_ACCESS_TOKEN"),
+            ("cookie", "name", "access", "token"),
+        )
+        self.assertEqual(
+            heuristics.name_words("props[apiKey]"), ("props", "api", "key")
+        )
 
 
 class TestSecretNames(unittest.TestCase):

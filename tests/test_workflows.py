@@ -107,6 +107,27 @@ class TestActionPinning(unittest.TestCase):
         )
         self.assertNotIn("WF001", rule_ids(findings))
 
+    def test_a_reference_from_the_repository_root_is_local_too(self):
+        # From home-assistant/core, which writes "$/" twenty-seven times and
+        # "./" never: inside a nested composite action "./" resolves against
+        # the caller's workspace, and "$/" against the repository root. Every
+        # one was reported as an action with no version, advising a commit SHA
+        # for a path that cannot have one.
+        findings = workflows.scan_workflow(
+            ".github/workflows/ci.yml",
+            workflow(
+                """
+                permissions:
+                  contents: read
+                jobs:
+                  build:
+                    steps:
+                      - uses: $/.github/actions/restore-or-build-venv
+                """
+            ),
+        )
+        self.assertNotIn("WF001", rule_ids(findings))
+
 
 class TestPermissions(unittest.TestCase):
     def test_flags_missing_permissions_block(self):

@@ -119,6 +119,23 @@ class TestScannerIntegration(unittest.TestCase):
         )
         self.assertIn("SEC001", rule_ids(findings))
 
+    def test_githubs_own_documented_tokens_are_not_reported(self):
+        # From home-assistant/core: tests/components/github/const.py and
+        # tests/components/github/fixtures/device_activate.json both carry the
+        # access token printed in every sample response on GitHub's
+        # "Authorizing OAuth apps" page, and both were reported as a personal
+        # access token at critical severity and high confidence.
+        for token in (
+            "gho_16C7e42F292c6912E7710c838347Ae178B4a",
+            "ghr_1B4a2e77838347a7E420ce178F2E7c6912E169246c34E1ccbF66C46812d16D5B1A9Dc86A1498",
+        ):
+            with self.subTest(token=token):
+                self.assertEqual(secrets.scan_text("const.py", f'T = "{token}"'), [])
+
+    def test_a_github_token_that_is_not_the_documented_one_is_reported(self):
+        token = "gho_" + "a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8"
+        self.assertIn("SEC002", rule_ids(secrets.scan_text("const.py", f'T = "{token}"')))
+
 
 if __name__ == "__main__":
     unittest.main()

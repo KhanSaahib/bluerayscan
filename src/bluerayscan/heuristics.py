@@ -323,12 +323,40 @@ _LABEL_SUFFIXES = (
 )
 
 
+#: The same words again, asked of the whole identifier rather than its tail,
+#: and read as words rather than as letters. ``COOKIE_NAME_ACCESS_TOKEN`` is
+#: the name of the cookie the access token travels in, not the token, and the
+#: suffix test cannot see that because the label word is in the middle. Home
+#: Assistant has four of these in shipped source.
+#:
+#: "example" is deliberately absent, and is the reason this is a second list
+#: rather than the first one reused: a name ending in "example" is a specimen,
+#: but ``EXAMPLE_API_TOKEN`` in the middle of a settings file may well hold a
+#: real value that somebody pasted in, and that is a finding worth keeping.
+_LABEL_WORDS = frozenset(_LABEL_SUFFIXES) - {"example"}
+
+#: Splits an identifier into the words it was written from: underscores,
+#: hyphens, dots and brackets separate, and so does a lower-to-upper hump.
+_WORD_BOUNDARY = re.compile(r"[^A-Za-z]+|(?<=[a-z0-9])(?=[A-Z])")
+
+
+def name_words(name: str) -> "tuple[str, ...]":
+    """The lower-case words ``name`` was written from.
+
+    Split before lower-casing, because the hump in ``cookieNameAccessToken`` is
+    the only thing marking the boundaries in it.
+    """
+    return tuple(word.lower() for word in _WORD_BOUNDARY.split(name) if word)
+
+
 def is_secret_name(name: str) -> bool:
     """True when an identifier announces that its value is a credential."""
     if SECRET_NAME.search(name) is None:
         return False
     trimmed = re.sub(r"[^a-z]", "", name.lower())
-    return not trimmed.endswith(_LABEL_SUFFIXES)
+    if trimmed.endswith(_LABEL_SUFFIXES):
+        return False
+    return not _LABEL_WORDS.intersection(name_words(name))
 
 
 #: How long a run of consecutive characters has to be before it can only be

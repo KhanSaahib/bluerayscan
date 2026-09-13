@@ -17,6 +17,47 @@ changes.
   checking what it was handed. Costs one finding across the twenty-one pinned
   repositories, at medium confidence, in a fixtures tree.
 
+### Fixed
+
+Five false-positive classes, from two repositories the corpus has never seen --
+`apache/airflow` and `home-assistant/core`, picked for what they stress that
+the twenty-one pinned repositories cover thinly. Every finding in both was
+read. Four of the five were reported at critical severity, and three of those
+at high confidence, which is the expensive kind.
+
+- **SEC004 read code that *recognises* private keys as code that carries
+  one.** `value.startswith("-----BEGIN PRIVATE KEY-----")`, `b"-----BEGIN
+  PRIVATE KEY-----" in data`, an HTML `placeholder` attribute, a line of prose
+  in backticks. A quote immediately after the header means the literal held the
+  header and nothing else; base64 follows a real one, on the next line or after
+  an escaped newline, never a bare quote. Eleven findings in Home Assistant,
+  five of them in shipped source, plus six in the pinned corpus -- two test
+  assertions, a form placeholder, and four lines of documentation.
+- **SEC021 called a fixture a leaked service account key file.** Airflow builds
+  one naming both fields with the word `PRIVATE` where the key goes, to check
+  the file it writes is `chmod 0600`. The fields now have to hold what those
+  fields hold in a real one: a PEM block in `private_key`, and a fingerprint
+  long enough to be real in `private_key_id` -- which is published in the
+  account's own JWKS and is not the leak on its own anyway.
+- **SEC002 reported GitHub's own documented example token.** `gho_16C7e4...`
+  is printed in every sample response on GitHub's "Authorizing OAuth apps"
+  page; Home Assistant has a copy in two files. Added with the refresh token
+  from the same page, both transcribed from it rather than from memory.
+- **A label word in the middle of a name no longer promises a credential.**
+  `COOKIE_NAME_ACCESS_TOKEN` names the cookie the token travels in, and Home
+  Assistant has four of those in shipped source. Names are now read as the
+  words they were written from -- underscores, hyphens and camel-case humps all
+  separate. `example` still counts only as the last word, because
+  `EXAMPLE_API_TOKEN` halfway down a settings file may hold a real value.
+- **WF001 asked a local action reference for a commit SHA.** `$/` names a path
+  relative to the repository root, which is the only form that works inside a
+  composite action nested in another one. Home Assistant writes it twenty-seven
+  times and `./` never, so all twenty-seven were reported.
+
+Corpus re-measurement: six findings fewer, every one of them read and confirmed
+a mention rather than a key. terragoat and kubernetes-goat, which measure
+recall, are unchanged.
+
 ### Documented
 
 - **Fourteen candidate spellings for an eighth application-code rule,

@@ -52,6 +52,16 @@ EXAMPLE_CREDENTIALS: frozenset = frozenset(
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
         ".eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ"
         ".SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+        # GitHub's OAuth documentation: the access token and refresh token
+        # printed in every sample response on the "Authorizing OAuth apps"
+        # page, for the web flow, the device flow and the refresh flow alike.
+        # Home Assistant has a copy in two files, and the scanner called it a
+        # personal access token at critical severity and high confidence.
+        # GitHub reuses the same body under other prefixes on the same page;
+        # only the two transcribed from the page itself are listed, because a
+        # literal guessed at claims a coverage this list does not have.
+        "gho_16C7e42F292c6912E7710c838347Ae178B4a",
+        "ghr_1B4a2e77838347a7E420ce178F2E7c6912E169246c34E1ccbF66C46812d16D5B1A9Dc86A1498",
         # Google's reCAPTCHA test pair, documented so that a test suite can
         # always pass verification. Published for that purpose, and every
         # project that has an automated login test has a copy.

@@ -79,16 +79,37 @@ _PEM_END = re.compile(r"-----END (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY----
 _PEM_MINIMUM = 64
 
 
-def _pem_block_is_empty(match: "re.Match[str]") -> bool:
-    """Filter for SEC004: a header and a footer with no key between them.
+#: The quote characters a string literal can close with. A key's header is
+#: followed by a newline, so a quote here means the literal held the header and
+#: nothing else.
+_CLOSING_QUOTES = frozenset("\"'`")
 
-    A test that checks its redactor, or a document explaining what a key looks
-    like, writes both markers on one line with a placeholder in the middle.
-    n8n does it forty-three times. A header with the body on the lines below is
-    the ordinary case and is never rejected here: this rule reads one line at a
-    time, so "cannot see the body" has to mean "assume it is real".
+
+def _pem_block_is_empty(match: "re.Match[str]") -> bool:
+    """Filter for SEC004: a header with no key after it.
+
+    Two shapes, both of which name a key without carrying one.
+
+    A header and a footer on one line with a placeholder between them is what a
+    test that checks its redactor writes, or a document explaining what a key
+    looks like; n8n does it forty-three times.
+
+    A header that closes its own string literal is code that *recognises*
+    keys -- ``value.startswith("-----BEGIN PRIVATE KEY-----")``,
+    ``b"-----BEGIN PRIVATE KEY-----" in data``, ``header = "-----BEGIN PRIVATE
+    KEY-----"``. Home Assistant has eleven of these, five in shipped source,
+    and every one was reported at critical severity and high confidence, which
+    is the most expensive thing a scanner can get wrong. The quote is the whole
+    signal and it is a reliable one: base64 follows a real header, on the next
+    line or after an escaped newline, never a bare quote.
+
+    A header with the body on the lines below is the ordinary case and is never
+    rejected here: this rule reads one line at a time, so "cannot see the body"
+    has to mean "assume it is real".
     """
     rest = match.string[match.end():]
+    if rest[:1] and rest[0] in _CLOSING_QUOTES:
+        return True
     end = _PEM_END.search(rest)
     if end is None:
         return False
