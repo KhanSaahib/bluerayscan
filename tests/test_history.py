@@ -8,6 +8,7 @@ import tempfile
 import unittest
 
 import fixtures
+import terminal
 from bluerayscan import cli, diffs, history
 
 
@@ -281,41 +282,17 @@ class TestTheCommand(unittest.TestCase):
         self.assertIn("urgent", errors)
 
 
-class TtyStringIO(io.StringIO):
-    def isatty(self):
-        return True
-
-
-def run_tty(argv, stdin=None):
-    stdout, stderr = TtyStringIO(), io.StringIO()
+def run_tty(argv, stdin):
+    """Run the CLI over ``stdin`` with stdout pretending to be a terminal."""
+    stdout, stderr = terminal.TtyStringIO(), io.StringIO()
     saved = sys.stdin
-    if stdin is not None:
-        sys.stdin = io.StringIO(stdin)
+    sys.stdin = io.StringIO(stdin)
     try:
         with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            code = cli.main(argv)
+            cli.main(argv)
     finally:
         sys.stdin = saved
-    return code, stdout.getvalue(), stderr.getvalue()
-
-
-@contextlib.contextmanager
-def temporary_env(**kwargs):
-    old = {}
-    for key, value in kwargs.items():
-        old[key] = os.environ.get(key)
-        if value is None:
-            os.environ.pop(key, None)
-        else:
-            os.environ[key] = value
-    try:
-        yield
-    finally:
-        for key, value in old.items():
-            if value is None:
-                os.environ.pop(key, None)
-            else:
-                os.environ[key] = value
+    return stdout.getvalue()
 
 
 class TestHistoryColor(unittest.TestCase):
@@ -325,27 +302,23 @@ class TestHistoryColor(unittest.TestCase):
         return commit("abc1234", "2026-03-04 10:00:00 +0000", added("app.py", 3, [self.LEAK]))
 
     def test_explicit_no_color_flag_disables_colour(self):
-        with temporary_env(NO_COLOR=None):
-            _, output, _ = run_tty(
-                ["history", "--fail-on", "none", "--no-color"], stdin=self.stream()
-            )
+        with terminal.temporary_env(NO_COLOR=None):
+            output = run_tty(["history", "--fail-on", "none", "--no-color"], self.stream())
         self.assertNotIn("\033", output)
 
     def test_no_color_unset_keeps_colour(self):
-        with temporary_env(NO_COLOR=None):
-            _, output, _ = run_tty(["history", "--fail-on", "none"], stdin=self.stream())
+        with terminal.temporary_env(NO_COLOR=None):
+            output = run_tty(["history", "--fail-on", "none"], self.stream())
         self.assertIn("\033", output)
 
     def test_no_color_empty_string_keeps_colour(self):
-        with temporary_env(NO_COLOR=""):
-            _, output, _ = run_tty(["history", "--fail-on", "none"], stdin=self.stream())
+        with terminal.temporary_env(NO_COLOR=""):
+            output = run_tty(["history", "--fail-on", "none"], self.stream())
         self.assertIn("\033", output)
 
     def test_no_color_non_empty_disables_colour(self):
-        with temporary_env(NO_COLOR="1"):
-            _, output, _ = run_tty(
-                ["history", "--fail-on", "none"], stdin=self.stream()
-            )
+        with terminal.temporary_env(NO_COLOR="1"):
+            output = run_tty(["history", "--fail-on", "none"], self.stream())
         self.assertNotIn("\033", output)
 
 

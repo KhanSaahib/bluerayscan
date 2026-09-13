@@ -117,6 +117,7 @@ bluerayscan scan . --max-file-size 8M       # read the big ones too
 bluerayscan scan . --no-gitignore           # also scan git-ignored files
 bluerayscan scan . --no-example-allowlist   # include documented and invented keys
 bluerayscan scan . --no-suppression         # read past the ignore markers
+bluerayscan scan . --no-color               # or set NO_COLOR in the environment
 
 bluerayscan scan . --write-baseline         # accept what is already there
 bluerayscan scan . --baseline               # fail only on what is new
@@ -167,8 +168,7 @@ Scanned 412 file(s) in 0.31s.
 
 That last line is not decoration. A run that scanned nothing looks exactly like
 a clean repository, and "no findings" from a mistyped path is the most
-dangerous answer this tool can give. Coloured terminal output can be disabled
-with `--no-color` or by setting the standard `NO_COLOR` environment variable.
+dangerous answer this tool can give.
 
 ## What history committed
 

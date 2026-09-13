@@ -294,7 +294,17 @@ def _render(
         return report.format_github(findings, notes=notes)
     if args.format == "junit":
         return report.format_junit(findings, notes=notes, duration=duration)
-    colour = not args.no_color and not os.environ.get("NO_COLOR") and args.output is None and sys.stdout.isatty()
+    # Four ways to end up without colour, and NO_COLOR is the one that comes
+    # from outside the command line: https://no-color.org says a terminal is
+    # not to be coloured when it is set to anything at all, an empty value
+    # being the one exception. Nothing here decides *what* is printed -- there
+    # is a test holding the two outputs to differing by escape sequences alone.
+    colour = (
+        not args.no_color
+        and not os.environ.get("NO_COLOR")
+        and args.output is None
+        and sys.stdout.isatty()
+    )
     if args.quiet:
         return report.format_summary(findings, notes=notes)
     return report.format_text(

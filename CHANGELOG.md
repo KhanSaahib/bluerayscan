@@ -4,6 +4,18 @@ All notable changes to BlueRayScan. This project follows [semantic
 versioning](https://semver.org/); until 1.0 the minor number carries breaking
 changes.
 
+## Unreleased
+
+### Added
+
+- **`NO_COLOR` is honoured**, as [no-color.org](https://no-color.org)
+  describes it: set to anything but an empty string, the terminal output is
+  not coloured, the same as passing `--no-color`. It changes the colour and
+  nothing else -- there is a test holding the coloured and uncoloured runs to
+  differing by escape sequences alone, because an environment variable that
+  could quietly change which findings are printed would be a way to switch the
+  tool off from outside it.
+
 ## 0.4.0 - 2026-09-12
 
 ### Added
