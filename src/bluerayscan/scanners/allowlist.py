@@ -62,6 +62,13 @@ EXAMPLE_CREDENTIALS: frozenset = frozenset(
         # literal guessed at claims a coverage this list does not have.
         "gho_16C7e42F292c6912E7710c838347Ae178B4a",
         "ghr_1B4a2e77838347a7E420ce178F2E7c6912E169246c34E1ccbF66C46812d16D5B1A9Dc86A1498",
+        # The well-known key Azurite and the legacy Azure Storage Emulator
+        # both accept for devstoreaccount1, printed in every connection string
+        # on Microsoft's "Connect to Azurite" page. Every project with an
+        # Azure Blob integration test has a copy: n8n, vector and nextcloud
+        # each have one here.
+        "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq"
+        "/K1SZFPTOtr/KBHBeksoGMGw==",
         # Google's reCAPTCHA test pair, documented so that a test suite can
         # always pass verification. Published for that purpose, and every
         # project that has an automated login test has a copy.

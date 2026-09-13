@@ -58,6 +58,36 @@ Corpus re-measurement: six findings fewer, every one of them read and confirmed
 a mention rather than a key. terragoat and kubernetes-goat, which measure
 recall, are unchanged.
 
+Four more classes, from round three -- `keycloak/keycloak`, for Java at scale
+and a tree full of *real* key material, and `vectordotdev/vector`, for Rust,
+which no rule family reads.
+
+- **A translated interface label is prose, colon and all.** Keycloak's login
+  theme ships eighty locales, and `console-new-password=New Password:` appears
+  in each. The prose filters wanted a full stop at the end, so the colon that
+  every form label carries walked straight past them. Single words too:
+  `Contrasenya:`, `Palavra-passe:`.
+- **A phrase may carry a version number.** `OAuth 2.0 Device Authorization
+  Grant`. One word of the phrase, and only that shape -- `Bearer
+  eyJhbGciOiJIUzI1NiI...` is also two words with a space in it, and is a
+  credential.
+- **An identifier may open or close with an acronym.** argo-cd assigns the
+  string `SSHPrivateKey` to a field called `SSHPrivateKey`; Keycloak assigns
+  `isAccessTokenJWT` to `IS_ACCESS_TOKEN_JWT`. No digits anywhere in that
+  shape: a generated password reads as humps too, and a first draft that
+  allowed digits between them swallowed dagger's `xFlejaPdjrt25Dvr`. There is
+  a test holding that one reported.
+- **A name ending in `Help`, `Description`, `Error`, `Message`, `Text`,
+  `Title` or `Tooltip` holds prose about a credential**, not one.
+- **Azurite's well-known development storage key** is now on the example
+  allowlist, transcribed from Microsoft's "Connect to Azurite" page. n8n,
+  vector and nextcloud each have a copy; every project with an Azure Blob
+  integration test does.
+
+Round three re-measurement: keycloak 193 to 154, vector 105 to 104, and six
+more findings off the pinned corpus -- `SSHPrivateKey` three times in argo-cd,
+two test passwords in discourse, one in n8n -- every one read.
+
 ### Documented
 
 - **Fourteen candidate spellings for an eighth application-code rule,

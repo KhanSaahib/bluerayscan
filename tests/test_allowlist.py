@@ -132,6 +132,18 @@ class TestScannerIntegration(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertEqual(secrets.scan_text("const.py", f'T = "{token}"'), [])
 
+    def test_azurites_well_known_development_key_is_not_reported(self):
+        # From vectordotdev/vector: src/sinks/azure_blob/integration_tests.rs
+        # builds the emulator connection string Microsoft prints on its
+        # "Connect to Azurite" page. n8n and nextcloud each have a copy too;
+        # every project with an Azure Blob integration test does.
+        key = (
+            "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq"
+            "/K1SZFPTOtr/KBHBeksoGMGw=="
+        )
+        text = f"AccountName=devstoreaccount1;AccountKey={key};"
+        self.assertEqual(secrets.scan_text("tests.rs", text), [])
+
     def test_a_github_token_that_is_not_the_documented_one_is_reported(self):
         token = "gho_" + "a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8"
         self.assertIn("SEC002", rule_ids(secrets.scan_text("const.py", f'T = "{token}"')))

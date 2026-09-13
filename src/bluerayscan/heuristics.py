@@ -93,7 +93,23 @@ _STRUCTURED = (
     # Camel or Pascal case with no digits: "ImagePullSecret", "privateToken".
     # Identifiers assigned to identifier-shaped names, which is what a
     # constants file is. A generated credential carries digits or punctuation.
-    re.compile(r"^[A-Za-z][a-z]*(?:[A-Z][a-z]+)+$"),
+    # An acronym may open or close it: argo-cd assigns the string
+    # "SSHPrivateKey" to a field called SSHPrivateKey, and Keycloak assigns
+    # "isAccessTokenJWT" to IS_ACCESS_TOKEN_JWT. No digits anywhere, which is
+    # the guard -- a generated password reads as humps too, and dagger's
+    # "xFlejaPdjrt25Dvr" is one. The corpus is how that was found: a first
+    # draft allowed digits between the humps and took that password with it.
+    re.compile(r"^(?:[A-Z]{2,}|[A-Za-z][a-z]*)(?:[A-Z][a-z]+)+[A-Z]*$"),
+    # A version in the first word and words after it: Keycloak's
+    # "oauth2DeviceAuthorizationGrantDisabledMessage". The digits have to be
+    # in the *first* word and every later one has to be a capital and two or
+    # more lower-case letters, so a run of digits in the middle -- which is
+    # what a generated value has -- does not qualify.
+    re.compile(r"^[a-z]+\d+(?:[A-Z][a-z]{2,})+$"),
+    # One word, hyphenated or not, with the colon a form label carries:
+    # "Contrasenya:", "Palavra-passe:", "Adgangskode:". Keycloak's login theme
+    # writes console-password in eighty locales and most of them land here.
+    re.compile(r"^[A-Za-z][A-Za-z'’]*(?:-[A-Za-z'’]+)*:$"),
     # A URN, or anything else colon-separated and spelled out:
     # "urn:ietf:params:oauth:token-type:jwt", "urn:oasis:names:tc:SAML:1.0:am:password".
     # Identifiers in a specification, which is what an OAuth or SAML constants
@@ -135,11 +151,20 @@ _STRUCTURED = (
     # project ships. Without the space requirement this swallows
     # "AdminPassword123!", which is a password ending in punctuation and is
     # exactly the finding a deliberately vulnerable repository is testing for.
-    re.compile(r"^(?=[^\W\d_])(?=[^\n]*\s)[\w .,;:!?'’\"()\\/-]+[.!?\"]$"),
-    # Words with spaces between them: "shhhh, very secret", "manny is cool".
-    # Prose, in other words, which is what a placeholder in an example app
-    # looks like. A generated credential has no spaces in it.
-    re.compile(r"^[A-Za-z][A-Za-z'’.,!?-]*(?: +[A-Za-z][A-Za-z'’.,!?-]*)+$"),
+    re.compile(r"^(?=[^\W\d_])(?=[^\n]*\s)[\w .,;:!?'’\"()\\/-]+[.!?\":]$"),
+    # Words with spaces between them: "shhhh, very secret", "manny is cool",
+    # "New Password:". Prose, in other words, which is what a placeholder in an
+    # example app looks like, and what a translated interface label is. A
+    # generated credential has no spaces in it.
+    #
+    # One word in the phrase may be a bare version number -- "OAuth 2.0 Device
+    # Authorization Grant", a Keycloak label in eighty locales. Only that
+    # shape, and not digits anywhere: "Bearer eyJhbGciOiJIUzI1NiI..." is also
+    # two words with a space, and is a credential.
+    re.compile(
+        r"^(?:[A-Za-z][A-Za-z'’.,!?-]*|\d+(?:\.\d+)*)"
+        r"(?: +(?:[A-Za-z][A-Za-z'’.,!?-]*|\d+(?:\.\d+)*))+:?$"
+    ),
     # An all-lowercase relative path: "testdata/secret_key". Anchored to
     # lowercase on purpose -- a base64 blob containing slashes has mixed case,
     # so this does not swallow one.
@@ -320,6 +345,12 @@ _LABEL_SUFFIXES = (
     "type", "types", "kind", "kinds", "name", "names", "field", "fields",
     "label", "labels", "prefix", "suffix", "pattern", "patterns",
     "placeholder", "example", "format", "scheme", "column", "table",
+    # Words that make the value prose *about* a credential. A translated
+    # interface is the largest source of these: Keycloak assigns an English
+    # sentence to oauthDeviceAuthorizationGrantHelp once per locale, and it
+    # ships eighty-odd locales.
+    "help", "description", "desc", "error", "message", "text", "title",
+    "tooltip", "tip", "note",
 )
 
 

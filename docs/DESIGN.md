@@ -131,6 +131,20 @@ reading the same output does not re-derive the argument.
   specimens, and the rule reports them at high confidence because a JWT is a
   JWT. Reading the `exp` claim would silence them, and would also silence a
   live token that happens to have expired since it leaked.
+- **Seventy keystores and seventeen private keys** (keycloak). An identity
+  provider's test tree needs a working PKI, and every one of those files is
+  what it says it is. FN001 and SEC004 are both right; `docs/RULES.md` names
+  the two ways to live with it, and neither is a change to a rule.
+- **Nine `check_hostname = False` and `verify=False` in shipped source**
+  (home-assistant). Correct, deliberate, and the project knows: they are how
+  a local device with a self-signed certificate is reached. A scanner saying
+  so is the scanner working.
+- **A hundred-odd host-path mounts, `curl | sh` installs and privileged
+  containers** across airflow, home-assistant, keycloak and vector. Every one
+  correct. A log collector does mount `/var/log`, and `rustup` is installed
+  the way rustup says to install it. These are the findings the confidence
+  axis cannot help with, because the rule is not guessing -- the reader has to
+  decide, and the report exists to put it in front of them.
 
 ## Five CI systems, one bug
 

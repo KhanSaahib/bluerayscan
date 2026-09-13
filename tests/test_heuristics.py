@@ -152,6 +152,21 @@ class TestLooksGenerated(unittest.TestCase):
             "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy",
             "$argon2id$v=19$m=65536,t=3,p=4$c29tZXNhbHQ$RdescudvJCsgt3ub",
             "_DISCOURSE_USER_TOKEN",
+            # From keycloak/keycloak: a login theme translated into eighty
+            # locales, where the label carries the colon a form field wants,
+            # and an admin console string with a version number in it. The
+            # existing prose patterns wanted a full stop at the end and every
+            # word to start with a letter.
+            "New Password:",
+            "Contrasenya:",
+            "Palavra-passe:",
+            "OAuth 2.0 Device Authorization Grant",
+            # And a constants file assigning each constant its own name in
+            # another casing. From keycloak and from argo-cd, whose
+            # repository_secrets_test.go sets SSHPrivateKey to "SSHPrivateKey".
+            "SSHPrivateKey",
+            "isAccessTokenJWT",
+            "oauth2DeviceAuthorizationGrantDisabledMessage",
         ):
             with self.subTest(value=value):
                 self.assertFalse(heuristics.looks_generated(value))
@@ -166,6 +181,22 @@ class TestLooksGenerated(unittest.TestCase):
 
 class TestValuesThatSurviveTheFilters(unittest.TestCase):
     """The filters must not swallow the things they sit next to."""
+
+    def test_a_generated_password_reads_as_humps_and_is_still_reported(self):
+        # From dagger: registryPassword = "xFlejaPdjrt25Dvr". A first draft of
+        # the identifier filter allowed digits between the humps, and this is
+        # what the corpus said about that. The second is the fixture password
+        # the shell rules are tested with, and the third is named in the
+        # prose filter's own comment as the thing it must not swallow.
+        for value in ("xFlejaPdjrt25Dvr", "Qq7Zx9Lm2Pv4Rt8W", "AdminPassword123!"):
+            with self.subTest(value=value):
+                self.assertTrue(heuristics.looks_generated(value))
+
+    def test_a_bearer_token_is_two_words_with_a_space_and_still_a_credential(self):
+        # The prose filter lets one word of a phrase be a version number.
+        # "Bearer <jwt>" is also two tokens with a space between them.
+        value = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+        self.assertFalse(heuristics.looks_like_placeholder(value))
 
     def test_an_uppercase_key_without_underscores_is_still_a_key(self):
         # AZURE_FEDERATED_TOKEN_FILE is an identifier; A1B2C3D4E5F6G7H8I9J0 is
@@ -233,6 +264,20 @@ class TestNamesThatAreLabels(unittest.TestCase):
         for name in (
             "COOKIE_NAME_ACCESS_TOKEN", "cookieNameAccessToken",
             "SECRET_NAME_OVERRIDE", "token_field_index", "apiKeyLabelText",
+        ):
+            with self.subTest(name=name):
+                self.assertFalse(heuristics.is_secret_name(name))
+
+    def test_a_name_holding_text_about_a_credential(self):
+        # From keycloak/keycloak's admin console messages, one per locale:
+        # oauthDeviceAuthorizationGrantHelp holds a paragraph explaining the
+        # grant. So do the Error, Description and Tooltip families beside it.
+        for name in (
+            "oauthDeviceAuthorizationGrantHelp",
+            "STS_COMBINED_SECRET_KEY_ERROR",
+            "tokenDescription",
+            "apiKeyTooltip",
+            "password_help_text",
         ):
             with self.subTest(name=name):
                 self.assertFalse(heuristics.is_secret_name(name))

@@ -203,8 +203,14 @@ new ones -- or a per-path rule in the config, which is the honest way to say
 "not here":
 
 ```json
-{ "paths": { "**/src/test/resources/**": { "disable": ["SEC004"] } } }
+{ "paths": { "**/src/test/resources/**": { "disable": ["SEC004", "FN001"] } } }
 ```
+
+Keycloak is the same case with the volume turned up: an identity provider's
+test tree needs a working PKI, so it carries seventeen private keys and
+**seventy** keystores -- `.jks`, `.p12`, `.bcfks`, `.pkcs12` -- and every one
+of those is FN001 saying, correctly, that no text rule can read inside it. The
+answer is the same two: a baseline, or the line above.
 
 Entropy is measured on ASCII only. Credentials travel through headers, URLs
 and environment variables that are ASCII, and text in another script is not --
@@ -221,7 +227,10 @@ The label word does not have to be last. `COOKIE_NAME_ACCESS_TOKEN` names the
 cookie the token travels in, and Home Assistant has four of those in shipped
 source, so the name is read as the *words* it was written from -- underscores,
 hyphens and camel-case humps all separate -- and a label word anywhere among
-them ends the question. One exception, and it is the reason the two lists are
+them ends the question. A name ending in `Help`, `Description`, `Error`,
+`Message`, `Text`, `Title` or `Tooltip` is on the list too: those hold prose
+*about* a credential. Keycloak's admin console assigns a paragraph to
+`oauthDeviceAuthorizationGrantHelp`, once in each of eighty locales. One exception, and it is the reason the two lists are
 not one: `example` counts only as the last word. A name ending in it is a
 specimen, but `EXAMPLE_API_TOKEN` halfway down a settings file may well hold a
 value somebody pasted in, and losing that is worse than reporting it.
@@ -235,6 +244,22 @@ Placeholders are filtered before entropy is measured at all — `your-password-h
 `${DB_PASSWORD}`, `xxxxxxxx`, `changeme` — and so is structure that is not a
 credential: paths, URLs without a password in them, version constraints, dotted
 identifiers, timestamps.
+
+Three of those shapes came from Keycloak and argo-cd, and each is narrow for a
+reason the corpus supplied:
+
+- **A label with the colon a form field wants** — `New Password:`,
+  `Contrasenya:`, `Palavra-passe:`. The prose filters wanted a full stop.
+- **A phrase with a version in it** — `OAuth 2.0 Device Authorization Grant`.
+  One word of the phrase may be a bare number, and only that: `Bearer
+  eyJhbGciOiJIUzI1NiI...` is also two words with a space between them, and is a
+  credential.
+- **An identifier opening or closing with an acronym** — `SSHPrivateKey`
+  assigned to a field called `SSHPrivateKey`, `isAccessTokenJWT` assigned to
+  `IS_ACCESS_TOKEN_JWT`. No digits anywhere in that shape, because a generated
+  password reads as humps too: dagger's `xFlejaPdjrt25Dvr` is one, and a first
+  draft that allowed digits between the humps took it with it. The corpus is
+  how that was found, which is what the corpus is for.
 
 What the floor rejects was measured rather than assumed. Reporting values that
 miss it *narrowly* -- the obvious way to catch a real credential the floor
