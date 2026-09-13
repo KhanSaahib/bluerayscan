@@ -75,6 +75,14 @@ _VERIFICATION_OFF = (
     re.compile(r"\bverify\s*=\s*False\b"),
     re.compile(r"\bssl\._create_unverified_context\s*\("),
     re.compile(r"\bcheck_hostname\s*=\s*False\b"),
+    # The same decision written in the standard library's own vocabulary, which
+    # is what anybody building a context by hand reaches for. Only where the
+    # constant is being *assigned*: ``if ctx.verify_mode == ssl.CERT_NONE`` is a
+    # library checking what it was handed, and reporting that would be reporting
+    # the code that cares.
+    re.compile(
+        r"\b(?:verify_mode|cert_reqs|validate)\s*=\s*['\"]?(?:ssl\.)?CERT_NONE\b"
+    ),
 )
 _NODE_VERIFICATION_OFF = (
     re.compile(r"\brejectUnauthorized\s*:\s*false\b"),
@@ -219,6 +227,14 @@ _RULES = (
         "Without hostname checking a valid certificate for any host is "
         "accepted for this one, which is most of what a certificate is for.",
         hints=("check_hostname",),
+    ),
+    _Rule(
+        "AP001", _VERIFICATION_OFF[3], _PYTHON, Severity.HIGH,
+        "The TLS context is told to require no certificate",
+        "CERT_NONE means the peer is not asked for a certificate at all, so "
+        "the connection is encrypted against nobody in particular. Leave the "
+        "default CERT_REQUIRED on and load the CA that signs the endpoint.",
+        hints=("cert_none",),
     ),
     _Rule(
         "AP001", _NODE_VERIFICATION_OFF[0], _JAVASCRIPT, Severity.HIGH,
@@ -366,9 +382,10 @@ _RULES = (
 #: a single pattern -- which is most files in most repositories.
 _HINTS = (
     "verif", "rejectunauthorized", "node_tls_reject", "check_hostname",
-    "debug", "random", "rand(", "mt_rand", "yaml.load", "unserialize",
-    "md5", "sha1", "sha256", "sha512", "exec", "system", "passthru",
-    "popen", "subprocess", "jwt", "jsonwebtoken", "unsafeallownone",
+    "cert_none", "debug", "random", "rand(", "mt_rand", "yaml.load",
+    "unserialize", "md5", "sha1", "sha256", "sha512", "exec", "system",
+    "passthru", "popen", "subprocess", "jwt", "jsonwebtoken",
+    "unsafeallownone",
 )
 
 

@@ -6,6 +6,27 @@ changes.
 
 ## Unreleased
 
+### Added
+
+- **AP001 reads a ninth spelling: `CERT_NONE`.** Assigned to `verify_mode`, to
+  `cert_reqs` or to ldap3's `validate`, it is the standard library's own
+  vocabulary for the decision the rule already reports four other ways, and
+  anybody building an `SSLContext` by hand reaches for it -- so the tool was
+  silent on the most canonical way to write the thing. Read only where the
+  constant is assigned: `if ctx.verify_mode == ssl.CERT_NONE` is a library
+  checking what it was handed. Costs one finding across the twenty-one pinned
+  repositories, at medium confidence, in a fixtures tree.
+
+### Documented
+
+- **Fourteen candidate spellings for an eighth application-code rule,
+  measured and refused**, in `ROADMAP.md`. The expensive one is SQL built by string
+  formatting: 344 findings across three languages and not one a reviewer would
+  want, because the one thing SQL will not let you bind is an identifier -- so
+  the legitimate use of formatting in a query has exactly the shape the rule
+  looks for. The rest are recorded with their numbers so nobody measures them
+  twice.
+
 ## 0.4.0 - 2026-09-13
 
 ### Added

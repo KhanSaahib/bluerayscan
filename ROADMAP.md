@@ -112,6 +112,41 @@ better outcome than a feature nobody wanted.
         something different in each, which is the bar failing
       - **Permissive CORS** -- `*` is only a problem with credentials, and the
         line does not say whether there are any
+      - **SQL built by string formatting** -- the classic, and the most
+        expensive thing measured here: **344** findings across the twenty-one,
+        none of them a reviewer would want. 311 in JavaScript and TypeScript,
+        of which the reader cannot even tell a database `.query()` from
+        supertest's HTTP one or a Prometheus client's; 30 in Go, 28 of them one
+        Postgres state backend; 3 in Python. Every true match interpolates a
+        *table or schema name*, and that is the structural reason the rule
+        cannot work: the one thing SQL will not let you bind is an identifier,
+        so the legitimate use of string formatting in a query has exactly the
+        shape the rule looks for
+      - **Request data inside a query** -- the narrower shape that works for
+        AP006, measured across Python, PHP, JavaScript and TypeScript: **zero**
+      - **Unsafe deserialisation beyond AP004** -- `pickle.loads` in Python,
+        five findings, every one of them a Django session or cache backend
+        reading bytes it wrote itself and every one already carrying a `#
+        nosec`; Ruby's `YAML.load` and `Marshal.load`, seven, two of them the
+        `Marshal.load(Marshal.dump(x))` deep-copy idiom and two already
+        carrying a `rubocop:disable`. Twelve findings, no reader wanted any of
+        them, and the authors had already said so in the file
+      - **A world-writable `chmod 0777`** -- four, all `os.MkdirAll` on a
+        scratch directory in a Go test, where the umask has the last word anyway
+      - **React's `dangerouslySetInnerHTML`** -- two, both rendering the
+        highlight markup a search API returned
+      - **Django's `ALLOWED_HOSTS = ["*"]`** -- one, and a real one, which is
+        why it still fails: Django's own documentation calls `*` acceptable
+        where a reverse proxy validates the Host header, and the settings line
+        does not say whether there is one. Two readings, so not one meaning
+      - **CSRF switched off** (`@csrf_exempt`, `CSRF_COOKIE_SECURE = False`,
+        `WTF_CSRF_ENABLED = False`) and **`os.system` with an interpolated
+        argument** -- **zero** each
+      - **ECB mode, DES and RC4, `tempfile.mktemp`, XXE via
+        `resolve_entities=True`** -- **zero** each. Like the weak-TLS-version
+        candidate, these clear the one-meaning bar and have nothing to find in
+        this corpus; twenty-one well-maintained repositories have had these
+        linted out of them for years
 
 ## Output and integration
 

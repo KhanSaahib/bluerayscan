@@ -21,6 +21,7 @@ class TestHints(unittest.TestCase):
         "verify=False": "app.py",
         "ssl._create_unverified_context()": "app.py",
         "check_hostname=False": "app.py",
+        "ctx.verify_mode = ssl.CERT_NONE": "app.py",
         "rejectUnauthorized: false": "a.js",
         "NODE_TLS_REJECT_UNAUTHORIZED=0": "a.js",
         "InsecureSkipVerify: true": "main.go",
@@ -96,6 +97,39 @@ class TestVerificationOff(unittest.TestCase):
     def test_ruby_verify_none(self):
         text = "http.verify_mode = OpenSSL::SSL::VERIFY_NONE\n"
         self.assertIn("AP001", rule_ids(scan("client.rb", text)))
+
+    def test_python_cert_none(self):
+        text = "ctx.verify_mode = ssl.CERT_NONE\n"
+        findings = scan("app.py", text)
+        self.assertIn("AP001", rule_ids(findings))
+        self.assertEqual(findings[0].severity, Severity.HIGH)
+
+    def test_the_other_two_keywords_that_take_the_constant(self):
+        # urllib3 and websocket-client take it as cert_reqs, and ldap3 as
+        # validate; all three mean the same thing as verify_mode.
+        for text in (
+            'urllib3.PoolManager(cert_reqs="CERT_NONE")\n',
+            "Tls(validate=ssl.CERT_NONE)\n",
+        ):
+            with self.subTest(text=text):
+                self.assertIn("AP001", rule_ids(scan("client.py", text)))
+
+    def test_comparing_against_cert_none_is_the_code_that_cares(self):
+        # A library checking what it was handed is the opposite of a library
+        # switching verification off, and the only thing separating the two on
+        # one line is the second equals sign.
+        for text in (
+            "if ctx.verify_mode == ssl.CERT_NONE:\n",
+            "assert ctx.verify_mode != ssl.CERT_NONE\n",
+        ):
+            with self.subTest(text=text):
+                self.assertEqual(scan("app.py", text), [])
+
+    def test_the_constant_named_without_being_chosen(self):
+        # Naming it in a docstring, a log line or an allowed-values list is not
+        # a decision; the rule wants the assignment.
+        self.assertEqual(scan("app.py", '"""Pass CERT_NONE to skip checks."""\n'), [])
+        self.assertEqual(scan("app.py", "CHOICES = (CERT_NONE, CERT_REQUIRED)\n"), [])
 
     def test_an_idiom_is_read_only_in_its_own_language(self):
         # "verify=False" is a Python spelling. In a Go file it is a keyword

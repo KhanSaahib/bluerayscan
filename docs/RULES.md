@@ -598,11 +598,20 @@ output and never chose any of its idioms.
 
 What the three have in common is that they are *deliberate*. Nobody disables
 certificate verification by accident: it is typed to get past a failure, with
-an intention to put it back that nothing afterwards records. AP001 knows the
-six spellings -- `verify=False`, `_create_unverified_context`,
-`rejectUnauthorized: false`, `NODE_TLS_REJECT_UNAUTHORIZED=0`,
-`InsecureSkipVerify: true`, `CURLOPT_SSL_VERIFYPEER` set false, and
-`VERIFY_NONE`.
+an intention to put it back that nothing afterwards records. AP001 knows nine
+spellings: Python's `verify=False`, `ssl._create_unverified_context()`,
+`check_hostname=False` and `CERT_NONE`; Node's `rejectUnauthorized: false` and
+`NODE_TLS_REJECT_UNAUTHORIZED=0`; Go's `InsecureSkipVerify: true`; PHP's
+`CURLOPT_SSL_VERIFYPEER` set false; and Ruby's `VERIFY_NONE`.
+
+`CERT_NONE` is read where it is *assigned* -- to `verify_mode`, to `cert_reqs`,
+or to ldap3's `validate` -- and not where it is compared against.
+`if ctx.verify_mode == ssl.CERT_NONE` is a library checking what it was handed,
+which is the code that cares rather than the code that gave up, and the whole
+difference between the two on one line is the second equals sign. Across the
+twenty-one pinned repositories the constant appears exactly once, in a script
+that generates LDAP fixtures against a lab directory server: one finding, at
+medium confidence because it sits in a fixtures tree.
 
 AP002 is Django's `DEBUG = True` and Flask's `debug=True`, both of which put a
 traceback, the local variables and often the settings object in front of
