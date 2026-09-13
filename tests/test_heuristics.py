@@ -114,6 +114,7 @@ class TestLooksGenerated(unittest.TestCase):
             "optional:classpath:application-test.properties",
             "Secret | None",
             "list[Secret] | None",
+            "dict[str, Node]|Secret|None",
             "+fmt.Sprintf(",
             "git.authheadersecret",
             # From authentik: identifiers out of a specification, which is
@@ -157,6 +158,10 @@ class TestLooksGenerated(unittest.TestCase):
 
     def test_rejects_a_repeated_pair(self):
         self.assertFalse(heuristics.looks_generated("ababababababab"))
+
+    def test_type_union_filter_rejects_a_long_non_type_without_backtracking(self):
+        value = "A |" * 10_000 + "!"
+        self.assertFalse(heuristics.looks_like_placeholder(value))
 
 
 class TestValuesThatSurviveTheFilters(unittest.TestCase):

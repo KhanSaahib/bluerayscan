@@ -166,10 +166,6 @@ _STRUCTURED = (
         r"resource|jar|bundle):[\w./:@+-]*$",
         re.I,
     ),
-    # A quoted type expression carrying a union: "Secret | None",
-    # "list[Secret] | None". Python annotations are strings wherever they are
-    # forward references, and a generated client is thousands of them.
-    re.compile(r"^[A-Za-z_][\w.\[\], ]*(?:\s*\|\s*[A-Za-z_][\w.\[\], ]*)+$"),
     # A fragment of code: `+fmt.Sprintf(` picked up where a name inside one
     # string literal meets a value inside the next, `!areAllCredentialsSet` or
     # `item.credentials ?? []` in a template binding, `access_token=' +` where
@@ -199,6 +195,11 @@ _STRUCTURED = (
     # like token_type and auth_scheme.
     re.compile(r"^[A-Z]?[a-z]+(?:[-_][A-Z]?[a-z]+)*$"),
 )
+
+# One arm of a quoted type union. Splitting on ``|`` first keeps matching
+# linear: allowing spaces both inside an arm and around the delimiter in one
+# repeated regex can create catastrophic backtracking on a rejected string.
+_TYPE_UNION_ARM = re.compile(r"^[A-Za-z_][\w.\[\], ]*$")
 
 
 def shannon_entropy(value: str) -> float:
@@ -294,6 +295,13 @@ def looks_like_placeholder(value: str) -> bool:
     if not stripped or _PLACEHOLDER.match(stripped):
         return True
     if _EMBEDDED_INTERPOLATION.search(stripped) or _ANGLE_PLACEHOLDER.search(stripped):
+        return True
+    # Python forward annotations such as "Secret | None" and
+    # "dict[str, Node] | None" are type expressions, not credentials.
+    type_arms = stripped.split("|")
+    if len(type_arms) > 1 and all(
+        _TYPE_UNION_ARM.fullmatch(arm.strip()) for arm in type_arms
+    ):
         return True
     if any(pattern.match(stripped) for pattern in _STRUCTURED):
         return True

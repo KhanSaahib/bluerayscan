@@ -6,6 +6,8 @@ changes.
 
 ## Unreleased
 
+## 0.4.0 - 2026-09-13
+
 ### Added
 
 - **`NO_COLOR` is honoured**, as [no-color.org](https://no-color.org)
@@ -15,10 +17,6 @@ changes.
   differing by escape sequences alone, because an environment variable that
   could quietly change which findings are printed would be a way to switch the
   tool off from outside it.
-
-## 0.4.0 - 2026-09-12
-
-### Added
 
 - **`bluerayscan explain VALUE`**, which says what the heuristic rules make of
   one value and whether they would report it: length, alphabet, entropy, the
@@ -100,6 +98,10 @@ changes.
 
 ### Changed
 
+- **The code-scanning upload excludes the deliberately vulnerable test
+  corpus**, matching the self-scan gate. Type-union placeholder matching is
+  also linear-time, removing the CodeQL regular-expression warning without
+  changing what the scanner accepts.
 - **The baseline file falls back to `.repo-sentinel-baseline.json`** when the
   current name is absent, the way the config file already did. Only the
   default name falls back: a file somebody named with `--baseline` is read or
