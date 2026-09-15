@@ -330,6 +330,32 @@ class TestIdentifiersFromRoundFive(unittest.TestCase):
         self.assertTrue(heuristics.looks_generated("Tr0ub4dor$three3more"))
 
 
+class TestIdentifiersFromRoundSix(unittest.TestCase):
+    """Constants in Signal-iOS whose value is the constant's own name."""
+
+    def test_an_acronym_may_sit_between_two_humps(self):
+        # SignalServiceKit/Util/APNSRotationStore.swift and
+        # Messages/UD/OWSUDManager.swift. Round three handled an acronym at
+        # either end; the middle is where Apple's vocabulary puts them.
+        for value in ("kUDUnrestrictedAccessKey", "lastKnownWorkingAPNSTokenKey",
+                      "lastKnownWorkingAPNSTokenTimestampKey"):
+            with self.subTest(value=value):
+                self.assertTrue(heuristics.looks_like_placeholder(value))
+
+    def test_a_generated_token_does_not_parse_as_an_acronym(self):
+        # The suite's random-token property test found this in a few hundred
+        # tries against a first draft that allowed an interior acronym in the
+        # existing pattern: it parses as five humps and an acronym. Requiring
+        # every other hump to be a capital and *two* lower-case letters is
+        # what separates them.
+        self.assertTrue(heuristics.looks_generated("ntNosjRjMjoZmHghZDXQnzp"))
+
+    def test_a_real_key_in_the_same_file_is_still_reported(self):
+        # SignalServiceKit/Network/API/Giphy/GiphyAPI.swift assigns this to
+        # kGiphyApiKey, three lines from one of the constants above.
+        self.assertTrue(heuristics.looks_generated("ZsUpUm2L6cVbvei347EQNp7HrROjbOdc"))
+
+
 class TestTestPaths(unittest.TestCase):
     def test_fixture_trees_and_test_files_are_recognised(self):
         for path in (

@@ -404,6 +404,19 @@ class TestTemplateFiles(unittest.TestCase):
         # A real key does get left in the file people copy.
         self.assertIn("SEC101", rule_ids(secrets.scan_text(".env.example", self.LINE)))
 
+    def test_a_literal_being_concatenated_is_a_fragment(self):
+        # azure-pipelines-tasks builds an IoT Hub Authorization header this
+        # way in Tasks/AzureIoTEdgeV2/util.ts. The first fragment is all the
+        # rule saw, and it is a query-parameter name.
+        line = 'var token = "SharedAccessSignature sr=" + resourceUri + "&sig=";\n'
+        self.assertEqual(rule_ids(secrets.scan_text("util.ts", line)), set())
+
+    def test_a_whole_value_next_to_a_concatenation_is_not(self):
+        # The question is asked from the end of *this* literal, so a plus
+        # elsewhere on the line says nothing about it.
+        line = 'const token = "Xk92mQp7Lz4TvB8nRw1Y"; const n = a + b;\n'
+        self.assertIn("SEC100", rule_ids(secrets.scan_text("util.ts", line)))
+
     def test_a_committed_phoenix_key_beginning_with_a_slash_is_reported(self):
         # Plausible's config/.env.dev, and three more .env files beside it.
         # Phoenix generates SECRET_KEY_BASE as base64, so one in thirty-two

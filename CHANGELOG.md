@@ -185,6 +185,30 @@ findings off the pinned corpus -- argo-cd's `admin.passwordMtime` and three Vue
 template bindings in n8n. No new findings anywhere; terragoat and
 kubernetes-goat unchanged.
 
+Two classes from round six, which continued round five's axis and closed a gap
+it named: `signalapp/Signal-iOS` for Swift, `.plist` and `.xcconfig`, and
+`microsoft/azure-pipelines-tasks` for PowerShell and the thinnest-measured of
+the five CI scanners.
+
+- **An acronym between two humps.** `lastKnownWorkingAPNSTokenKey` and
+  `kUDUnrestrictedAccessKey`, each assigned to a constant of exactly that name.
+  Round three handled an acronym at either end; the middle is where Apple's
+  vocabulary puts them. A separate shape rather than a third alternative in the
+  existing one, because allowing an interior run of capitals needs every other
+  hump to be a capital and *two* lower-case letters -- without that the suite's
+  random-token property test found `ntNosjRjMjoZmHghZDXQnzp` in a few hundred
+  tries. The real Giphy key three lines away stays reported.
+- **A literal being concatenated is a fragment of a value.**
+  `"SharedAccessSignature sr=" + resourceUri + …`, assigned to `token` in
+  azure-pipelines-tasks' IoT Hub task. The same position the fixture convention
+  takes from the other side: a credential split across a concatenation is one
+  no scanner reads.
+
+Round six re-measurement: Signal-iOS 30 to 27, azure-pipelines-tasks 87 to 86,
+and two findings off the pinned corpus -- an `access_token=` fragment and a JWT
+prefix being concatenated in an n8n test. The AZ family and the Kubernetes
+rules were read across 87 findings and had nothing wrong in them.
+
 ### Documented
 
 - **Fourteen candidate spellings for an eighth application-code rule,

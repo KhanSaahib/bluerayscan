@@ -184,6 +184,16 @@ reading the same output does not re-derive the argument.
   per example generates the same finding per example. `bluerayscan init`
   records them once.
 
+- **Three encrypted RSA private keys in test fixtures** (azure-pipelines-tasks,
+  `Tasks/SshV0/Tests/` and `Tests-Legacy/L0/CopyFilesOverSSH/`). SEC004 at
+  critical and high confidence, which is deliberate: a fixture tree lowers the
+  rules that were already guessing, and a documented shape is not one of them.
+  A task that copies files over SSH needs a working key to test against.
+- **A real Giphy API key in shipped source** (signal-ios,
+  `SignalServiceKit/Network/API/Giphy/GiphyAPI.swift`). A true positive, three
+  lines from two constants whose value is their own name — which is the whole
+  argument for the identifier filters being narrow rather than generous.
+
 ## Five CI systems, one bug
 
 GitHub expands `${{ github.event.issue.title }}`, GitLab expands

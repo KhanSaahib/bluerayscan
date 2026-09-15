@@ -279,6 +279,14 @@ Placeholders are filtered before entropy is measured at all — `your-password-h
 credential: paths, URLs without a password in them, version constraints, dotted
 identifiers, timestamps.
 
+A string literal with a concatenation operator straight after it is a
+*fragment* of a value rather than a value: azure-pipelines-tasks builds an IoT
+Hub Authorization header as `"SharedAccessSignature sr=" + resourceUri + …`
+and assigns it to `token`, and the first fragment is all the rule saw. This is
+the same position the fixture convention takes from the other side — a
+credential split across a concatenation is one no scanner reads, which is why
+this project assembles its own test fixtures.
+
 Interpolation counts wherever it appears, not only at the start, and in three
 more spellings than the braces: Python's empty format pair, so Azure's
 `"SharedKey {}:{}"` is a template rather than an Authorization header, and a
@@ -327,6 +335,13 @@ narrow for a reason the corpus supplied:
   bitwarden workflows pass to a key-vault action under a key called `secrets`.
   Both halves name a secret; neither is one. No credential contains a comma,
   so the question is asked once over the parts and does not recurse.
+- **An acronym between two humps** — `lastKnownWorkingAPNSTokenKey`, which
+  Signal-iOS assigns to a constant of exactly that name. A separate shape from
+  the one above rather than a third alternative inside it, because allowing an
+  interior run of capitals needs every other hump to be a real word: a capital
+  and *two* or more lower-case letters, not one. Without that the suite's
+  random-token property test found `ntNosjRjMjoZmHghZDXQnzp` in a few hundred
+  tries, which parses as five humps and an acronym and is a generated token.
 - **A dotted identifier with camel-case after the dots** —
   `backup.mediaCredentials`, which Signal assigns to a constant called
   `KEY_MEDIA_CREDENTIALS`, seven times in one file. Two dotted segments is one

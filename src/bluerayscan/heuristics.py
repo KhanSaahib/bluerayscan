@@ -134,6 +134,21 @@ _STRUCTURED = (
         r"^(?=.*[A-Z][a-z])(?:[A-Z]{2,}|[A-Za-z][a-z]*)"
         r"(?:[A-Z][a-z]+|\d+[a-z]{2,})+[A-Z]*$"
     ),
+    # The same idea with an acronym *between* two humps: Signal-iOS assigns
+    # the string "lastKnownWorkingAPNSTokenKey" to a constant called
+    # lastKnownWorkingAPNSTokenKey, and "kUDUnrestrictedAccessKey" likewise.
+    #
+    # A separate pattern rather than a third alternative in the one above,
+    # because allowing an interior run of capitals needs every other hump to
+    # be a real word -- a capital and *two* or more lower-case letters, not
+    # one. Without that the suite's random-token property test found
+    # "ntNosjRjMjoZmHghZDXQnzp" in a few hundred tries, which parses as five
+    # humps and an acronym and is a generated token. Widening the pattern
+    # above instead would have taken that with it.
+    re.compile(
+        r"^(?=.*[A-Z][a-z])(?:[A-Z]{2,}|[A-Za-z][a-z]*)"
+        r"(?:[A-Z][a-z]{2,}|[A-Z]{2,}(?=[A-Z][a-z]))+[A-Z]*$"
+    ),
     # A version in the first word and words after it: Keycloak's
     # "oauth2DeviceAuthorizationGrantDisabledMessage". The digits have to be
     # in the *first* word and every later one has to be a capital and two or
