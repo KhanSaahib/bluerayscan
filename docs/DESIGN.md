@@ -194,6 +194,19 @@ reading the same output does not re-derive the argument.
   lines from two constants whose value is their own name — which is the whole
   argument for the identifier filters being narrow rather than generous.
 
+- **Four hundred and seventy Terraform findings in a provider's test data**
+  (terraform-provider-aws, `internal/service/*/testdata/`). Open security
+  groups, public S3 ACLs, `Action: "*"` with `Resource: "*"` -- every one of
+  them correct, and every one of them the fixture a provider needs in order to
+  test that it can create the thing. The confidence axis already handles it:
+  they arrive at medium and low, not high. This is what a fixture tree lowering
+  is *for*, and it is the largest example the programme has found.
+- **Two inputs interpolated into one shell command** (terraform-provider-aws,
+  `.github/actions/community_check/action.yml:44`). Reported twice on the same
+  line, which looked wrong and is not: the line really does interpolate
+  `inputs.core_contributors` and `inputs.user_login`, and both are the
+  composite action's own untrusted inputs.
+
 ## Five CI systems, one bug
 
 GitHub expands `${{ github.event.issue.title }}`, GitLab expands

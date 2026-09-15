@@ -224,7 +224,10 @@ is silenced -- a live key does get pasted into a README -- but
 `--min-confidence high` stops hearing about them.
 
 In a **fixture tree** (`testdata/`, `fixtures/`, `spec/`, `*_test.*`) only the
-rules that were already guessing drop. Entropy is worth less there because
+rules that were already guessing drop. Directory names are compared with their
+separators taken out, because the same idea is written four ways:
+`test-fixtures`, `test_fixtures`, `testfixtures` and `__fixtures__` are one
+directory, and terraform-provider-aws uses the first of them throughout. Entropy is worth less there because
 invented credentials are the point of a fixture. A documented token shape is
 not worth less, because the classic way a real key reaches a repository is a
 test that once talked to a real service.
@@ -342,6 +345,12 @@ narrow for a reason the corpus supplied:
   and *two* or more lower-case letters, not one. Without that the suite's
   random-token property test found `ntNosjRjMjoZmHghZDXQnzp` in a few hundred
   tries, which parses as five humps and an acronym and is a generated token.
+- **A dollar-prefixed dotted reference** — `$request.header.x-api-key`, which
+  is how API Gateway names the key it should look at, and
+  `$dex.github.clientSecret`, which is how Argo CD's own manual tells you to
+  point at a secret rather than write one. The dot is what makes this safe
+  next to the shouted `$NAME` rule: a password may open with a dollar, but not
+  with a dollar and a dotted path of word characters.
 - **A dotted identifier with camel-case after the dots** —
   `backup.mediaCredentials`, which Signal assigns to a constant called
   `KEY_MEDIA_CREDENTIALS`, seven times in one file. Two dotted segments is one
@@ -716,6 +725,16 @@ helper function, or a shared library, is invisible to it.
 Every other family finds `curl \| sh` inside something -- a Dockerfile, a
 pipeline, a package manifest. This one finds it where it usually lives: in the
 script those things point at, which nobody re-reads once it works.
+
+SH003 tells `chmod 777` apart from `chmod +w`, because POSIX does. A mode
+written with an explicit `a` or `o`, or as octal, is world-writable whatever
+the machine is set to, and the finding says so at medium confidence. A bare
+`+w` has the bits set in the umask excluded from it, so under the usual 022 it
+is the owner alone — and under umask 0, or after a script sets its own, it is
+every account on the machine. That one is reported at low confidence and says
+what is actually true: *writable as widely as the umask allows*. Bazel writes
+it in two build scripts, and calling those world-writable is a claim about the
+machine's umask that no reader of the file can check.
 
 SH004 is two problems in one line. `curl -u admin:hunter2`, `mysql -phunter2`,
 `sshpass -p hunter2`, `PGPASSWORD=hunter2 psql`: the credential is in the file,

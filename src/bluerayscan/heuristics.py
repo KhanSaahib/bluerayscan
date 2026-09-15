@@ -253,6 +253,12 @@ _STRUCTURED = (
     # A sentinel constant, which by convention starts where an identifier
     # cannot: "__n8n_BLANK_VALUE_e5362baf-...". Credentials do not.
     re.compile(r"^__"),
+    # A dollar-prefixed dotted reference: API Gateway selects an API key with
+    # "$request.header.x-api-key" or "$context.authorizer.usageIdentifierKey",
+    # and terraform-provider-aws asserts on both. The dot is what makes this
+    # safe next to the shouted "$NAME" rule above -- a password may open with
+    # a dollar, but not with a dollar and a dotted path of word characters.
+    re.compile(r"^\$[A-Za-z_][\w-]*(?:\.[\w-]+)+$"),
     # A reference into a document: "#/components/schemas/PasswordChallenge".
     # An OpenAPI schema is tens of thousands of these, and the ones that end in
     # a word like "Challenge" or "Token" are the ones a secret rule reads.

@@ -85,10 +85,17 @@ def is_interpolated(value: str) -> bool:
 #: recorded responses, sample configuration. A credential here is usually
 #: invented -- usually, not always, which is why this lowers confidence rather
 #: than silencing anything.
+#:
+#: Compared with the separators taken out, because the same directory is
+#: written four ways: "test-fixtures", "test_fixtures", "testfixtures" and
+#: "__fixtures__" are one idea, and terraform-provider-aws uses the first of
+#: them throughout while this list knew only the last. Normalising is what
+#: makes "__fixtures__" and "__mocks__" unnecessary as separate entries.
 _TEST_DIRECTORIES = frozenset(
-    {"testdata", "test", "tests", "fixtures", "__fixtures__", "testing", "mocks",
-     "__mocks__", "spec", "specs", "examples", "example", "e2e", "integration"}
+    {"testdata", "test", "tests", "fixtures", "testfixtures", "testing", "mocks",
+     "spec", "specs", "examples", "example", "e2e", "integration"}
 )
+_DIRECTORY_SEPARATORS = re.compile(r"[-_.]+")
 _TEST_NAME_MARKERS = ("_test.", "test_", ".test.", "_spec.", "mock_", "_mock.")
 
 
@@ -160,7 +167,10 @@ SKIPS_VERIFICATION = re.compile(
 def is_test_path(path: str) -> bool:
     """True when a path is somewhere invented values are expected to live."""
     parts = path.replace("\\", "/").split("/")
-    if {part.lower() for part in parts[:-1]} & _TEST_DIRECTORIES:
+    directories = {
+        _DIRECTORY_SEPARATORS.sub("", part.lower()) for part in parts[:-1]
+    }
+    if directories & _TEST_DIRECTORIES:
         return True
     name = parts[-1].lower()
     return any(marker in name for marker in _TEST_NAME_MARKERS)

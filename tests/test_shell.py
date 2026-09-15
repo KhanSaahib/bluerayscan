@@ -2,7 +2,7 @@
 
 import unittest
 
-from bluerayscan.findings import Severity
+from bluerayscan.findings import Confidence, Severity
 from bluerayscan.scanners import shell
 
 
@@ -106,10 +106,29 @@ class TestPermissions(unittest.TestCase):
 
     def test_the_who_list_decides(self):
         # "u+w" is an owner granting themselves write access, which is most
-        # chmods ever written. "+w" with no who-list means all of them.
+        # chmods ever written. "+w" with no who-list is the umask's decision.
         self.assertIn("SH003", rule_ids(scan("chmod +w file\n")))
         self.assertIn("SH003", rule_ids(scan("chmod go+w file\n")))
         self.assertEqual(scan("chmod u+rwx file\n"), [])
+
+    def test_a_bare_plus_w_says_the_umask_decides(self):
+        # Bazel writes "chmod +w" in two build scripts. POSIX excludes the
+        # bits the umask sets from a who-less mode, so under the usual 022
+        # this is owner-only -- and calling it world-writable is a claim about
+        # the machine's umask that no reader of the file can check.
+        finding = next(f for f in scan("chmod +w file\n") if f.rule_id == "SH003")
+        self.assertEqual(finding.confidence, Confidence.LOW)
+        self.assertIn("as widely as the umask allows", finding.title)
+        self.assertIn("umask", finding.remediation)
+
+    def test_a_mode_that_does_not_depend_on_the_umask_is_stated_as_fact(self):
+        for line in ("chmod 777 f", "chmod a+w f", "chmod o+w f"):
+            with self.subTest(line=line):
+                finding = next(
+                    f for f in scan(line + "\n") if f.rule_id == "SH003"
+                )
+                self.assertEqual(finding.confidence, Confidence.MEDIUM)
+                self.assertIn("world-writable", finding.title)
 
     def test_ordinary_modes_are_fine(self):
         for line in ("chmod 644 /etc/app.conf", "chmod -R 755 /opt/app", "chmod u+w file"):

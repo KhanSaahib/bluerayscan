@@ -123,21 +123,30 @@ def _check_verification(path: str, text: str) -> "Iterator[Finding]":
         )
 
 
-def _world_writable_mode(line: str) -> "str | None":
-    """The mode in a chmod that grants write access to everybody, if any."""
+def _world_writable_mode(line: str) -> "tuple[str, bool] | None":
+    """The chmod mode that grants write access to everybody, and how sure.
+
+    The second half of the pair is whether it is world-writable *whatever the
+    umask is*. An octal mode and an explicit ``a`` or ``o`` are; a bare ``+w``
+    is not, because POSIX excludes the bits set in the umask from it -- under
+    the usual 022 that leaves owner-only. Bazel writes ``chmod +w`` in two
+    build scripts and the rule called both world-writable, which is a claim
+    about the machine's umask that no reader of the file can check.
+    """
     octal = _OCTAL_WORLD_WRITABLE.search(line)
     if octal is not None:
-        return octal.group("mode")
+        return octal.group("mode"), True
 
     symbolic = _SYMBOLIC_MODE.search(line)
     if symbolic is None or "w" not in symbolic.group("what"):
         return None
     who = symbolic.group("who")
-    # An empty who-list means "all", subject to umask. "u+w" is an owner
-    # granting themselves write access, which is most chmods ever written.
+    # "u+w" is an owner granting themselves write access, which is most chmods
+    # ever written, and says nothing about anybody else.
     if who and not set(who) & {"a", "o"}:
         return None
-    return f"{who}{symbolic.group('op')}{symbolic.group('what')}"
+    mode = f"{who}{symbolic.group('op')}{symbolic.group('what')}"
+    return mode, bool(who)
 
 
 def _check_permissions(path: str, text: str) -> "Iterator[Finding]":
@@ -145,22 +154,36 @@ def _check_permissions(path: str, text: str) -> "Iterator[Finding]":
     for number, line in _lines(text):
         if _is_comment(line):
             continue
-        mode = _world_writable_mode(line)
-        if mode is None:
+        found = _world_writable_mode(line)
+        if found is None:
             continue
-        yield Finding(
-            rule_id="SH003",
-            severity=Severity.MEDIUM,
-            title=f"A script makes something world-writable ({mode})",
-            path=path,
-            line=number,
-            evidence=line.strip()[:120],
-            remediation=(
+        mode, whatever_the_umask = found
+        if whatever_the_umask:
+            title = f"A script makes something world-writable ({mode})"
+            remediation = (
                 "Any account on the machine can rewrite this, and for a script "
                 "or a unit file that means any account decides what runs next. "
                 "Give the owner write access and nobody else."
+            )
+        else:
+            title = f"A script makes something writable as widely as the umask allows ({mode})"
+            remediation = (
+                f"A bare '{mode}' excludes whatever the umask sets, so under the "
+                "usual 022 this is the owner alone -- and under umask 0, or "
+                "after a script sets its own, it is every account on the "
+                "machine. Write 'u+w' to say which was meant."
+            )
+        yield Finding(
+            rule_id="SH003",
+            severity=Severity.MEDIUM,
+            title=title,
+            path=path,
+            line=number,
+            evidence=line.strip()[:120],
+            remediation=remediation,
+            confidence=(
+                Confidence.MEDIUM if whatever_the_umask else Confidence.LOW
             ),
-            confidence=Confidence.MEDIUM,
         )
 
 

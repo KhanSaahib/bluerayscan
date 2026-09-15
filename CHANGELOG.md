@@ -221,6 +221,36 @@ rules were read across 87 findings and had nothing wrong in them.
   SARIF and the other four formats are unchanged -- they are read by machines,
   which do not mind.
 
+Two classes and one over-claim from round seven --
+`hashicorp/terraform-provider-aws` for Terraform at a scale nothing else
+reaches, and `bazelbuild/bazel` for Starlark and a build system's shell.
+
+- **`chmod +w` is not `chmod 777`, and SH003 now says so.** POSIX excludes the
+  bits the umask sets from a who-less mode, so under the usual 022 a bare `+w`
+  is the owner alone; under umask 0 it is everybody. Bazel writes it in two
+  build scripts and both were reported as world-writable at medium confidence,
+  which is a claim about the machine's umask that no reader of the file can
+  check. An explicit `a`, an `o`, or an octal mode still says world-writable as
+  fact; a bare `+w` now says *writable as widely as the umask allows*, at low.
+- **A fixture directory is written four ways.** `test-fixtures`,
+  `test_fixtures`, `testfixtures` and `__fixtures__` are one directory, and the
+  list knew only the last two. terraform-provider-aws uses the first
+  throughout, so three findings there kept a confidence a fixture tree should
+  have lowered. Directory names are now compared with their separators taken
+  out, which is also what makes `__mocks__` unnecessary as a separate entry.
+- **A dollar-prefixed dotted reference is a reference.**
+  `$request.header.x-api-key` is how API Gateway names the key to look at, and
+  `$dex.github.clientSecret` is how Argo CD's own manual tells you to point at
+  a secret rather than write one -- the tool was reporting argo-cd's
+  documentation as a leak, four times.
+
+Round seven re-measurement: terraform-provider-aws 594 to 592 with three
+findings correctly weakened, bazel unchanged at 22 with two weakened, and six
+findings off the pinned corpus -- all six of them Argo CD or n8n secret
+references. The 594 findings in terraform-provider-aws were read: the
+Terraform family was right about every one of the 470 in `testdata/`, and had
+already lowered their confidence.
+
 ### Documented
 
 - **Fourteen candidate spellings for an eighth application-code rule,

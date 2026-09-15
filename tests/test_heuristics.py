@@ -356,6 +356,19 @@ class TestIdentifiersFromRoundSix(unittest.TestCase):
         self.assertTrue(heuristics.looks_generated("ZsUpUm2L6cVbvei347EQNp7HrROjbOdc"))
 
 
+class TestReferencesFromRoundSeven(unittest.TestCase):
+    def test_a_dollar_prefixed_dotted_reference_is_a_reference(self):
+        # API Gateway selects an API key with these, and
+        # terraform-provider-aws asserts on both. Argo CD's own manual writes
+        # "$dex.github.clientSecret" as the documented way to point at a
+        # secret, and was told it had leaked one.
+        for value in ("$request.header.x-api-key",
+                      "$context.authorizer.usageIdentifierKey",
+                      "$dex.github.clientSecret", "$secrets.oldKey"):
+            with self.subTest(value=value):
+                self.assertTrue(heuristics.looks_like_placeholder(value))
+
+
 class TestTestPaths(unittest.TestCase):
     def test_fixture_trees_and_test_files_are_recognised(self):
         for path in (
@@ -366,6 +379,24 @@ class TestTestPaths(unittest.TestCase):
         ):
             with self.subTest(path=path):
                 self.assertTrue(wellknown.is_test_path(path))
+
+    def test_a_fixture_directory_is_written_four_ways(self):
+        # terraform-provider-aws uses "test-fixtures" throughout, and the list
+        # knew only "fixtures" and "__fixtures__". The separators are what
+        # differ, so they are taken out before the comparison.
+        for path in (
+            "internal/service/rds/test-fixtures/stack.json",
+            "internal/service/transfer/test_fixtures/key",
+            "pkg/testfixtures/response.json",
+            "pkg/test-data/response.json",
+        ):
+            with self.subTest(path=path):
+                self.assertTrue(wellknown.is_test_path(path))
+
+    def test_a_directory_that_merely_starts_with_test_is_not(self):
+        for path in ("build/test-results/report.xml", "src/testbed/main.go"):
+            with self.subTest(path=path):
+                self.assertFalse(wellknown.is_test_path(path))
 
     def test_ordinary_source_is_not(self):
         for path in ("src/app/main.go", "cmd/server/config.py", "latest/index.html"):
