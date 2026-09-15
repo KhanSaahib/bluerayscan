@@ -83,6 +83,15 @@ a weakness in anybody's software.
 SEC900 is not a class of secret; it reports a suppression block that was opened
 and never closed. See [Suppressing a false positive](#suppressing-a-false-positive).
 
+SEC007 is weakened, not silenced, where a Google API key sits under one of
+Google's own generated client-configuration names — `google_api_key`,
+`google_crash_reporting_api_key`, or the `current_key` field they are written
+from in `google-services.json`. A Firebase or Maps key ships inside the
+application binary: it identifies the project rather than authorising the
+caller, and Google's guidance is to restrict it by package name rather than to
+hide it. Signal commits two. The finding stays because whether the key *is*
+restricted is the thing that matters, and nothing in the file says.
+
 SEC001–SEC054 match on documented token structure. A token to a secrets
 manager (SEC028) is rated as what it opens rather than as one credential, and
 a payment token (SEC034) as what it can move, and a Terraform Cloud token
@@ -103,6 +112,16 @@ n8n wrote `AKIAEVALFAKEIOSFODNN` into a file whose first line reads *DO NOT USE
 THESE*. Four letters is short enough to ask whether a generated value could
 carry them by accident: over a 24-character base62 body the chance is about
 three in a million.
+
+No documented shape is read inside an **embedded binary payload**: an unbroken
+run of more than 1,024 base64 characters is a picture, a font or a minified
+bundle, and nothing in this table comes close to that length — the longest is a
+GitHub fine-grained token at 255. A Jupyter notebook stores a chart as
+`"image/png": "iVBORw0KGgo…"` on one line, and `EAAA` is four characters, so a
+few hundred kilobytes of base64 contains it by chance. Azure's machine-learning
+examples ship four hundred notebooks and one of those charts was reported as a
+Square access token, at critical, advising the reader that a live token can
+move money.
 
 SEC006 is the one shape that had to be tightened rather than filtered. Every
 documented Slack token carries the numeric team or app id directly after the
@@ -260,6 +279,14 @@ Placeholders are filtered before entropy is measured at all — `your-password-h
 credential: paths, URLs without a password in them, version constraints, dotted
 identifiers, timestamps.
 
+Interpolation counts wherever it appears, not only at the start, and in three
+more spellings than the braces: Python's empty format pair, so Azure's
+`"SharedKey {}:{}"` is a template rather than an Authorization header, and a
+*shouted* shell variable, so `multiplier@https://$KV_NAME.vault.azure.net` is
+a Key Vault reference rather than the secret it points at. Shouted is the
+requirement — a bcrypt hash and a stray dollar in a password both put
+lower-case after the `$`.
+
 A path is the one piece of structure that had to learn an exception. Base64's
 alphabet contains `/` and `+`, so roughly one generated value in thirty-two
 opens with a character that reads as structure — and Plausible commits a
@@ -300,6 +327,13 @@ narrow for a reason the corpus supplied:
   bitwarden workflows pass to a key-vault action under a key called `secrets`.
   Both halves name a secret; neither is one. No credential contains a comma,
   so the question is asked once over the parts and does not recurse.
+- **A dotted identifier with camel-case after the dots** —
+  `backup.mediaCredentials`, which Signal assigns to a constant called
+  `KEY_MEDIA_CREDENTIALS`, seven times in one file. Two dotted segments is one
+  fewer than the reverse-DNS filter above wants, so the humps carry the
+  argument instead: every one is a capital and two or more lower-case letters,
+  which a base64 run is not. A JWT is also three dotted segments, and its
+  middle one breaks apart on the very first hump.
 
 What the floor rejects was measured rather than assumed. Reporting values that
 miss it *narrowly* -- the obvious way to catch a real credential the floor
@@ -460,6 +494,18 @@ WF003 is the script-injection class: `${{ github.event.issue.title }}` inside a
 `run:` step is substituted into the shell command *before* the shell runs, so an
 issue title containing `$(...)` executes on the runner. The fix is always to
 route the value through an `env:` block and reference it as `"$VAR"`.
+
+Each reference inside an interpolation is read on its own, because an
+expression is often a fallback. Azure's machine-learning examples write
+`${{ github.event.pull_request.number || github.ref }}` in 269 generated
+workflows; read as one expression its last word is `ref`, so the harmless-field
+check never saw the `number` it was there to find, and every one of the 269 was
+reported at critical. A genuinely untrusted field next to a harmless one is
+still reported, which is the other half of the same change.
+
+A `run:` key with nothing after it is not a script. A job or a step may be
+*called* `run` — saleor has a job called `run` — and everything nested under it
+was being read as shell, including the job's own `if:` condition.
 
 WF004 and WF008 are the same mistake through two doors. Both `pull_request_target`
 and `workflow_run` run from the base branch with the repository's secrets

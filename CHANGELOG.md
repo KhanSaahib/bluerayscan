@@ -136,6 +136,55 @@ forty-nine findings off the pinned corpus, every one read and every one a value
 that announces itself: `test-secret-key-12345`, `s3_access_key_id`,
 `sk-live-abcdef123456`. terragoat and kubernetes-goat are unchanged.
 
+Four false positives, one of them 269 findings at critical, and two bugs behind
+them -- from round five, which picked on **file format** rather than language:
+`Azure/azureml-examples` for four hundred Jupyter notebooks and three hundred
+and fifty-five generated workflows, and `signalapp/Signal-Android` for Kotlin
+and Gradle.
+
+- **A token shape inside embedded binary is a coincidence.** A notebook stores
+  a chart as `"image/png": "iVBORw0KGgo..."` on one line. `EAAA` is four
+  characters, so a few hundred kilobytes of base64 contains it by chance, and
+  one of Azure's charts was reported as a **Square access token, at critical**,
+  advising the reader that a live token can move money. No documented shape is
+  read inside an unbroken run of more than 1,024 base64 characters; the longest
+  shape in the table is 255.
+- **WF003 read a fallback expression as one reference.**
+  `${{ github.event.pull_request.number || github.ref }}`, which azureml writes
+  in **269 generated workflows**. A pull request number is an integer and is on
+  the harmless-field list, but read as one expression the last word is `ref`, so
+  the check never saw it. Each reference inside an interpolation is now read on
+  its own, and an untrusted field beside a harmless one is still reported.
+- **A `run:` key with nothing after it was read as a shell script.** A job or a
+  step may be *called* `run` -- saleor has one -- and everything nested under
+  it, including the job's own `if:` condition, was being scanned as shell. This
+  was a latent bug in every rule that reads a run block; the WF003 change above
+  is what surfaced it.
+- **A dotted identifier with camel-case after the dots.**
+  `backup.mediaCredentials`, which Signal assigns to a constant called
+  `KEY_MEDIA_CREDENTIALS`, seven times in one file. Two dotted segments is one
+  fewer than the reverse-DNS filter wanted, so the humps carry the argument
+  instead -- a JWT is also three dotted segments and breaks apart on its first.
+- **Interpolation in three more spellings.** Python's empty format pair, so
+  Azure's `"SharedKey {}:{}"` is a template rather than an Authorization
+  header, and a *shouted* shell variable anywhere in a value, so
+  `multiplier@https://$KV_NAME.vault.azure.net` is a Key Vault reference rather
+  than the secret it points at. Shouted is the requirement: a bcrypt hash and a
+  stray dollar in a password both put lower-case after the `$`.
+- **A Google API key in Google's own client configuration is weakened rather
+  than dropped.** Under `google_api_key`, `google_crash_reporting_api_key` or
+  `current_key`, the key ships inside the application binary and Google's
+  guidance is to restrict it rather than hide it. It stays reported, at one
+  step less confidence, because whether it *is* restricted is the thing that
+  matters and nothing in the file says. Provider rules gained a `weaken` hook
+  alongside `reject` for this, because "a key somebody chose to publish" and
+  "not a key" are different claims.
+
+Round five re-measurement: azureml 1,557 to 1,284, Signal 8 to 5, and four
+findings off the pinned corpus -- argo-cd's `admin.passwordMtime` and three Vue
+template bindings in n8n. No new findings anywhere; terragoat and
+kubernetes-goat unchanged.
+
 ### Documented
 
 - **Fourteen candidate spellings for an eighth application-code rule,

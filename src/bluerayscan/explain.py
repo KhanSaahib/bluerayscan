@@ -82,7 +82,7 @@ def explain(value: str, name: str = "") -> Explanation:
 def _provider_shape(value: str) -> str:
     """The name of the documented token shape ``value`` matches, or ""."""
     spans: "list[tuple[int, int]]" = []
-    for rule, _, _ in providers.findings_in(
+    for rule, _, _, _ in providers.findings_in(
         "<explain>", 1, value, spans, False, allowlist.is_known_example
     ):
         return f"{rule.title} ({rule.rule_id})"

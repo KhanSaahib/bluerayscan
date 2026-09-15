@@ -39,6 +39,12 @@ class ProviderRule:
     secret_group: Union[int, str] = 0
     #: Optional second opinion, for shapes loose enough to need one.
     reject: Optional[Callable[["re.Match[str]"], bool]] = None
+    #: The same signature again, for surroundings that argue against a finding
+    #: without refuting it: the finding is reported one step of confidence
+    #: lower rather than dropped. Separate from ``reject`` because "this is a
+    #: key somebody chose to publish" and "this is not a key" are different
+    #: claims, and only the second is safe to act on silently.
+    weaken: Optional[Callable[["re.Match[str]"], bool]] = None
     #: Literal substrings, at least one of which appears in *every* string this
     #: pattern can match. Testing for them is what makes a scan of a large
     #: repository finish: a substring search is an order of magnitude cheaper
@@ -155,6 +161,50 @@ def looks_invented(secret: str) -> bool:
     return is_counted_out(secret)
 
 
+#: The names Google's own generated client configuration gives an API key:
+#: "google_api_key" and "google_crash_reporting_api_key" are the Android string
+#: resources the Gradle plugin writes, and "current_key" is the field they are
+#: written from in google-services.json. A key under one of those ships inside
+#: the application binary -- it identifies the project rather than authorising
+#: the caller, and Google's guidance is to restrict it by package name rather
+#: than to hide it. Signal commits two, in app/ and demo/.
+#:
+#: The finding is weakened rather than dropped, because whether the key *is*
+#: restricted is the thing that matters and nothing in the file says. An
+#: unrestricted Maps or Firebase key is a real billing incident.
+_GOOGLE_CLIENT_KEY_NAMES = re.compile(
+    r"google_api_key|google_crash_reporting_api_key|current_key"
+)
+
+
+def _is_google_client_configuration(match: "re.Match[str]") -> bool:
+    """Filter for SEC007: the key is published as part of a mobile client."""
+    return _GOOGLE_CLIENT_KEY_NAMES.search(match.string) is not None
+
+
+#: How long an unbroken run of base64 has to be before a token shape found
+#: inside it is read as a coincidence rather than a credential. Nothing in this
+#: table comes close: the longest documented shape is a GitHub fine-grained
+#: token, and that tops out at 255 characters.
+#:
+#: What this is for is embedded binary. A Jupyter notebook stores a chart as
+#: '"image/png": "iVBORw0KGgo..."' on one line, and Azure's machine-learning
+#: examples ship four hundred notebooks full of them. "EAAA" is four
+#: characters, so a few hundred kilobytes of base64 contains it by chance --
+#: and SEC034 reported one as a Square access token, at critical, with a
+#: remediation reading "a live token can move money". Minified bundles,
+#: inline SVGs and embedded fonts are the same coincidence waiting to happen.
+_PAYLOAD_RUN = 1024
+_BASE64_RUN = re.compile(r"[A-Za-z0-9+/=_-]{%d,}" % _PAYLOAD_RUN)
+
+
+def payload_spans(line: str) -> "list[tuple[int, int]]":
+    """Where ``line`` carries embedded binary rather than text."""
+    if len(line) < _PAYLOAD_RUN:
+        return []
+    return [match.span() for match in _BASE64_RUN.finditer(line)]
+
+
 RULES: tuple[ProviderRule, ...] = (
     ProviderRule(
         "SEC001",
@@ -218,6 +268,7 @@ RULES: tuple[ProviderRule, ...] = (
         Severity.HIGH,
         re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b"),
         "Delete the key in the Google Cloud console and add API restrictions to its replacement.",
+        weaken=_is_google_client_configuration,
         hints=("AIza",),
     ),
     ProviderRule(
@@ -654,8 +705,8 @@ def findings_in(
     matched_spans: "list[tuple[int, int]]",
     allow_examples: bool,
     is_known_example: "Callable[[str], bool]",
-) -> "Iterator[tuple[ProviderRule, str, str]]":
-    """Yield ``(rule, secret, evidence)`` for every shape matched on one line.
+) -> "Iterator[tuple[ProviderRule, str, str, Confidence]]":
+    """Yield ``(rule, secret, evidence, confidence)`` for each shape on a line.
 
     Spans of everything matched are recorded even when the match is dropped as
     a known example, so that a value the allowlist silenced cannot resurface
@@ -667,6 +718,8 @@ def findings_in(
     """
     if not CANDIDATE.search(line):
         return
+
+    payloads = payload_spans(line)
 
     # The hints are why a large repository finishes scanning. Each is searched
     # for once, and the ones present select the handful of patterns worth
@@ -682,9 +735,15 @@ def findings_in(
         rule = RULES[index]
         for match in rule.pattern.finditer(line):
             secret = match.group(rule.secret_group)
-            matched_spans.append(match.span(rule.secret_group))
+            span = match.span(rule.secret_group)
+            matched_spans.append(span)
+            if any(start <= span[0] and span[1] <= end for start, end in payloads):
+                continue
             if rule.reject is not None and rule.reject(match):
                 continue
             if allow_examples and (is_known_example(secret) or looks_invented(secret)):
                 continue
-            yield rule, secret, evidence_for(match, rule)
+            confidence = rule.confidence
+            if rule.weaken is not None and rule.weaken(match):
+                confidence = confidence.weaker
+            yield rule, secret, evidence_for(match, rule), confidence

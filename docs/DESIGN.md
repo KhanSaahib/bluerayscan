@@ -169,6 +169,20 @@ reading the same output does not re-derive the argument.
   `tracker/compiler/analyze-sizes.js`). AP006 is right about the shape. The
   interpolated value is a filename the script just produced, which is the
   reading a human does in four seconds and a rule cannot do at all.
+- **A Google Maps key in a Gradle build file** (signal-android,
+  `app/build.gradle.kts`: `manifestPlaceholders["mapsKey"]`). The same key
+  class as the two weakened beside it, in a file that is not Google's
+  generated client configuration and does not say what the key is for. A key
+  pasted into a build script could be anything, and an unrestricted Maps key
+  is a real billing incident, so this one stays at high confidence.
+- **A keystore in a test resources tree** (signal-android, `ias.jks`). FN001
+  saying, correctly, that no text rule can read inside it. Same answer as
+  keycloak's seventy: a baseline, or a per-path rule.
+- **Eight hundred unpinned actions across three hundred and fifty-five
+  generated workflows** (azureml-examples). Every one correct, and the volume
+  is the point rather than a defect: a repository that generates a workflow
+  per example generates the same finding per example. `bluerayscan init`
+  records them once.
 
 ## Five CI systems, one bug
 

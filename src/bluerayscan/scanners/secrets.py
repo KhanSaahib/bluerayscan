@@ -230,7 +230,7 @@ def _provider_findings(
     allow_examples: bool,
 ) -> Iterator[Finding]:
     """Every documented token shape, in one line of text."""
-    for rule, _secret, evidence in providers.findings_in(
+    for rule, _secret, evidence, confidence in providers.findings_in(
         path, line_number, line, matched_spans, allow_examples, allowlist.is_known_example
     ):
         yield Finding(
@@ -241,7 +241,7 @@ def _provider_findings(
             line=line_number,
             evidence=evidence,
             remediation=rule.remediation,
-            confidence=rule.confidence,
+            confidence=confidence,
             subject=redact(_secret),
         )
 

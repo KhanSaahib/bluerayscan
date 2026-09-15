@@ -295,6 +295,41 @@ class TestIdentifiersFromRoundFour(unittest.TestCase):
         )
 
 
+class TestIdentifiersFromRoundFive(unittest.TestCase):
+    """Values from Signal-Android and Azure's machine-learning examples."""
+
+    def test_a_dotted_camel_case_preference_key_is_a_key_name(self):
+        # app/src/main/java/.../keyvalue/BackupValues.kt assigns these to
+        # constants called KEY_MEDIA_CREDENTIALS and friends, seven in one
+        # file. Two dotted segments is one fewer than the reverse-DNS filter
+        # wants, so the humps carry the argument instead.
+        for value in ("backup.mediaCredentials", "backup.restoreState",
+                      "backup.messageCdnReadCredentialsTimestamp"):
+            with self.subTest(value=value):
+                self.assertTrue(heuristics.looks_like_placeholder(value))
+
+    def test_a_base64_run_is_not_a_dotted_identifier(self):
+        # A JWT is three dotted segments of base64 and must stay reportable;
+        # the middle one here breaks apart on its very first hump.
+        self.assertTrue(heuristics.looks_generated("dozjgNryP4J3jVmNHl0w5N"))
+
+    def test_an_empty_format_placeholder_is_still_a_placeholder(self):
+        # setup/setup-ci/security-scanner/amlsecscan.py builds an
+        # Authorization header this way and assigns it to "authorization".
+        self.assertTrue(heuristics.looks_like_placeholder("SharedKey {}:{}"))
+
+    def test_a_shouted_shell_variable_anywhere_is_interpolation(self):
+        # cli/deploy-moe-keyvault.sh: a Key Vault reference, not the secret
+        # it points at.
+        value = "multiplier@https://$KV_NAME.vault.azure.net"
+        self.assertTrue(heuristics.looks_like_placeholder(value))
+
+    def test_a_dollar_in_a_password_is_not_a_variable(self):
+        # Shouted is the requirement: a bcrypt hash and a stray dollar in a
+        # password both put lower-case after the "$".
+        self.assertTrue(heuristics.looks_generated("Tr0ub4dor$three3more"))
+
+
 class TestTestPaths(unittest.TestCase):
     def test_fixture_trees_and_test_files_are_recognised(self):
         for path in (

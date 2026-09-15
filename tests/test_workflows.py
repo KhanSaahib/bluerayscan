@@ -214,6 +214,61 @@ class TestScriptInjection(unittest.TestCase):
         )
         self.assertNotIn("WF003", rule_ids(findings))
 
+    def test_a_harmless_field_with_a_fallback_beside_it_is_still_harmless(self):
+        # Azure's machine-learning examples write this in 269 generated
+        # workflows. Read as one expression its last word is "ref", so the
+        # harmless-field check never saw the "number" it was there to find,
+        # and every one of the 269 was reported at critical.
+        findings = workflows.scan_workflow(
+            ".github/workflows/ci.yml",
+            workflow(
+                """
+                permissions:
+                  contents: read
+                jobs:
+                  greet:
+                    steps:
+                      - run: echo '${{ github.event.pull_request.number || github.ref }}'
+                """
+            ),
+        )
+        self.assertNotIn("WF003", rule_ids(findings))
+
+    def test_an_untrusted_field_beside_a_harmless_one_is_still_reported(self):
+        findings = workflows.scan_workflow(
+            ".github/workflows/ci.yml",
+            workflow(
+                """
+                permissions:
+                  contents: read
+                jobs:
+                  greet:
+                    steps:
+                      - run: echo '${{ github.event.pull_request.number || github.event.issue.title }}'
+                """
+            ),
+        )
+        self.assertIn("WF003", rule_ids(findings))
+
+    def test_a_job_called_run_is_not_a_shell_script(self):
+        # saleor has one, and everything nested under it -- the job's own
+        # "if:" condition included -- was being read as shell.
+        findings = workflows.scan_workflow(
+            ".github/workflows/ci.yml",
+            workflow(
+                """
+                permissions:
+                  contents: read
+                jobs:
+                  run:
+                    if: ${{ contains(github.event.pull_request.labels.*.name, 'perf') }}
+                    steps:
+                      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+                """
+            ),
+        )
+        self.assertNotIn("WF003", rule_ids(findings))
+
 
 class TestPullRequestTarget(unittest.TestCase):
     def test_flags_checkout_of_untrusted_ref(self):

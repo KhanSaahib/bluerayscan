@@ -72,16 +72,26 @@ _FIRST_PARTY_OWNERS = frozenset({"actions", "github"})
 #: lesson was learned here and then learned again, identically, on Azure.
 _HARMLESS_FIELDS = ci.HARMLESS_FIELDS
 
+#: One ``${{ ... }}`` interpolation, and the expression inside it.
+_INTERPOLATION = re.compile(r"\$\{\{(?P<body>[^{}]*)\}\}")
+
 #: Contexts an outside contributor can write to. Interpolating any of these
 #: into a shell command hands them the runner.
+#:
+#: Matched one reference at a time rather than as the whole expression, and
+#: the dotted path stops where a name stops. An expression is often a
+#: fallback -- Azure's machine-learning examples write
+#: ``${{ github.event.pull_request.number || github.ref }}`` in 269 generated
+#: workflows -- and reading that as one reference put "ref" at the end of it,
+#: so the harmless-field check never saw the "number" it was there to find.
+#: Every one of the 269 was reported at critical.
 _UNTRUSTED = re.compile(
-    r"""\$\{\{\s*
+    r"""github\.
     (?P<expr>
-        github\.head_ref
-      | github\.event\.(?:issue|pull_request|comment|review|discussion
-                        |head_commit|commits|workflow_run|pages)\b[^}]*
-    )
-    \s*\}\}""",
+        head_ref
+      | event\.(?:issue|pull_request|comment|review|discussion
+                 |head_commit|commits|workflow_run|pages)(?:\.[\w-]+)*
+    )""",
     re.VERBOSE,
 )
 
@@ -213,7 +223,15 @@ def _iter_run_lines(lines: list[str]) -> Iterator[tuple[int, str]]:
             continue
 
         inline = match.group("inline").strip()
-        if inline and not inline.startswith(("|", ">")):
+        if not inline:
+            # "run:" with nothing after it is a mapping key, not a script. A
+            # job or a step may be *called* run -- saleor has a job called
+            # run -- and everything nested under it was being read as shell,
+            # including the job's own "if:" condition. A real script carries
+            # its block-scalar marker.
+            index += 1
+            continue
+        if not inline.startswith(("|", ">")):
             yield index + 1, lines[index]
             index += 1
             continue
@@ -473,22 +491,27 @@ def _unused_write(path: str, line: int, subject: str) -> Finding:
 def _check_script_injection(path: str, lines: list[str]) -> Iterator[Finding]:
     """WF003: attacker-controlled text substituted into a shell command."""
     for number, line in _iter_run_lines(lines):
-        for match in _UNTRUSTED.finditer(line):
-            expression = match.group("expr").strip()
-            if expression.rsplit(".", 1)[-1] in _HARMLESS_FIELDS:
-                continue
-            yield Finding(
-                rule_id="WF003",
-                severity=Severity.CRITICAL,
-                title=f"Untrusted input {match.group('expr')} interpolated into a shell command",
-                path=path,
-                line=number,
-                evidence=line.strip(),
-                remediation=(
-                    "Pass the value through an env: block and reference it as "
-                    '"$VAR" so the shell never parses attacker-controlled text.'
-                ),
-            )
+        for interpolation in _INTERPOLATION.finditer(line):
+            for match in _UNTRUSTED.finditer(interpolation.group("body")):
+                expression = match.group(0).strip()
+                if expression.rsplit(".", 1)[-1] in _HARMLESS_FIELDS:
+                    continue
+                yield Finding(
+                    rule_id="WF003",
+                    severity=Severity.CRITICAL,
+                    title=(
+                        f"Untrusted input {expression} interpolated into a "
+                        "shell command"
+                    ),
+                    path=path,
+                    line=number,
+                    evidence=line.strip(),
+                    remediation=(
+                        "Pass the value through an env: block and reference it "
+                        'as "$VAR" so the shell never parses attacker-controlled '
+                        "text."
+                    ),
+                )
 
 
 def _check_privileged_checkout(path: str, lines: list[str]) -> Iterator[Finding]:

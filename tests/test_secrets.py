@@ -104,6 +104,45 @@ class TestInventedCredentials(unittest.TestCase):
             "SEC006", self.scan("xox" + "b-8403192576-3401928475610-Xk92mQp7Lz4TvB8nRw1Y")
         )
 
+    def test_a_token_shape_inside_embedded_binary_is_a_coincidence(self):
+        # A Jupyter notebook stores a chart as '"image/png": "iVBORw0KGgo..."'
+        # on one line. Azure's machine-learning examples ship four hundred
+        # notebooks, and one of those blobs contains "EAAA" followed by
+        # fifty-six base64 characters -- reported as a Square access token, at
+        # critical, advising the reader that a live token can move money.
+        payload = ("iVBORw0KGgoAAAANSUhEUg" * 60) + "EAAA" + ("Qw9x" * 20)
+        line = '     "image/png": "' + payload + '",\n'
+        self.assertEqual(rule_ids(secrets.scan_text("chart.ipynb", line)), set())
+
+    def test_the_same_shape_on_a_line_of_its_own_is_still_reported(self):
+        # The run has to be long enough to be a payload. A token sitting in
+        # ordinary text is not inside one.
+        self.assertIn("SEC034", self.scan("EAAA" + "Qw9x" * 14))
+
+    def test_a_google_key_in_a_client_configuration_is_weakened(self):
+        # Signal commits its Firebase key twice, in app/ and demo/. A Firebase
+        # or Maps key ships inside the application binary; Google's guidance
+        # is to restrict it, not to hide it. The finding stays -- whether this
+        # one *is* restricted is exactly what the file does not say.
+        key = "AIza" + "SyDrfzNAPBPzX6key51hqo3p5LZXF5Y-yxU"
+        line = f'<string name="google_api_key" translatable="false">{key}</string>\n'
+        finding = next(
+            f
+            for f in secrets.scan_text("app/src/main/res/values/firebase.xml", line)
+            if f.rule_id == "SEC007"
+        )
+        self.assertEqual(finding.severity, Severity.HIGH)
+        self.assertEqual(finding.confidence, Confidence.MEDIUM)
+
+    def test_the_same_key_anywhere_else_is_not(self):
+        key = "AIza" + "SyDrfzNAPBPzX6key51hqo3p5LZXF5Y-yxU"
+        finding = next(
+            f
+            for f in secrets.scan_text("app/build.gradle.kts", f'mapsKey = "{key}"\n')
+            if f.rule_id == "SEC007"
+        )
+        self.assertEqual(finding.confidence, Confidence.HIGH)
+
     def test_the_same_shape_with_generated_bytes_is_reported(self):
         self.assertIn("SEC001", self.scan("AKIA" + "ZZ7Q4TWFN2XKLM3D"))
 
