@@ -120,13 +120,20 @@ def _pem_block_is_empty(match: "re.Match[str]") -> bool:
 #: Words that only appear in a credential somebody made up. Not a
 #: comprehensive list and not meant to be: each of these is a word a human
 #: typed where a generated value would be, which is the whole signal.
+#:
+#: "fake" and "dummy" are here as bare words rather than as "fakekey" and
+#: "dummykey", which is what they were until bitwarden wrote
+#: "rk_test_EXAMPLEfakevalue". Four and five letters is short enough to ask
+#: whether a generated value could contain them by accident: over a
+#: twenty-four character base62 body the chance is about three in a million
+#: for "fake", which is the same order as every other word on this list.
 #: "example" is deliberately absent: a Sentry DSN or a webhook URL carries its
 #: host inside the match, and example.invalid is what a documentation host is
 #: called. The allowlist handles the vendor conventions built on that word.
 _INVENTED_WORDS = (
     "changeme", "change_me", "change-me", "replaceme", "replace_me",
     "replace-me", "setme", "set_me", "putyour", "insertyour", "placeholder",
-    "yourkey", "your_key", "your-key", "youraccount", "fakekey", "dummykey",
+    "yourkey", "your_key", "your-key", "youraccount", "fake", "dummy",
     "redacted", "notarealkey", "xxxxxxxx",
 )
 def looks_invented(secret: str) -> bool:
@@ -194,7 +201,14 @@ RULES: tuple[ProviderRule, ...] = (
         "SEC006",
         "Slack token",
         Severity.HIGH,
-        re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{10,}\b"),
+        # Every documented Slack token carries the numeric team or app id
+        # directly after the prefix: xoxb-<team>-<app>-<24 alphanumerics>,
+        # xoxp with a third numeric segment, xoxa-2-<...>. Requiring that
+        # digit is what separates a token from a sentence. Without it the
+        # prefix alone was the whole test, and bitwarden's "xoxb-test-token"
+        # and "xoxb-token-from-slack" were reported at high severity and high
+        # confidence in three test files and an integrations README.
+        re.compile(r"\bxox[abprs]-\d+-[A-Za-z0-9-]{10,}\b"),
         "Revoke the token in the Slack app configuration.",
         hints=("xox",),
     ),

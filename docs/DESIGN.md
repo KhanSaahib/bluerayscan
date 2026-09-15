@@ -145,6 +145,30 @@ reading the same output does not re-derive the argument.
   the way rustup says to install it. These are the findings the confidence
   axis cannot help with, because the rule is not guessing -- the reader has to
   decide, and the report exists to put it in front of them.
+- **A hundred RSA private keys in one Rust source file** (bitwarden,
+  `util/RustSdk/rust/src/rsa_keys.rs`). The file opens with six lines of
+  comment saying they are test-only, and they are real PKCS#8 keys all the
+  same. SEC004 reports the file once, at critical, and that is the right
+  answer: a comment above a key is not a property of the key. What the comment
+  *is* good for is the reviewer's decision, which is why the evidence line
+  carries the file and not a verdict.
+- **A Duende IdentityServer licence key** (bitwarden,
+  `src/Core/Settings/GlobalSettings.cs`). A signed JWT, committed, naming
+  Bitwarden Inc. and an expiry in December 2026. SEC009 is right that it is a JWT and
+  right that it is in shipped source. It is also a licence rather than an
+  authentication credential, and no rule can read that distinction out of the
+  bytes -- the claims that say so are vendor-specific. Reported at medium,
+  which is where a finding a human has to judge belongs.
+- **Four database ports published in a development compose file** (bitwarden,
+  `dev/docker-compose.yml`: 1433, 5432, 3306, 6379). DC005 is correct and the
+  file's directory is the whole argument against caring. `dev/` is not a
+  fixture tree and this tool does not treat it as one, because the day a
+  `dev/` compose file is copied into a deployment is the day the finding
+  matters. A per-path rule in the config is the honest way to say "not here".
+- **Three `execSync` calls built from template literals** (plausible,
+  `tracker/compiler/analyze-sizes.js`). AP006 is right about the shape. The
+  interpolated value is a filename the script just produced, which is the
+  reading a human does in four seconds and a rule cannot do at all.
 
 ## Five CI systems, one bug
 

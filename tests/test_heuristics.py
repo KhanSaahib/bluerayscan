@@ -226,6 +226,74 @@ class TestValuesThatSurviveTheFilters(unittest.TestCase):
     def test_a_base64_blob_with_slashes_is_not_read_as_a_path(self):
         self.assertTrue(heuristics.looks_generated("aG9sZFRoZUxpbmVYeVo5/cXc4bTJrN3A1"))
 
+    def test_a_base64_blob_that_opens_with_a_slash_is_not_read_as_a_path(self):
+        # Plausible commits this SECRET_KEY_BASE into four .env files under
+        # config/. Base64's alphabet contains "/", so one generated value in
+        # thirty-two opens with one, and the path filter took this whole class
+        # on that single character.
+        value = "/njrhntbycvastyvtk1zycwfm981vpo/0xrvwjjvemdakc/vsvbrevlwsc6u8rcg"
+        self.assertTrue(heuristics.looks_generated(value))
+
+    def test_a_real_path_is_still_a_path(self):
+        # The guard is the length of the runs between the slashes: a path is
+        # short words, a key is one long run or a few.
+        for value in ("/etc/ssl/private", "./key.pem", "/usr/bin/env",
+                      "/home/runner/work/repo/repo"):
+            with self.subTest(value=value):
+                self.assertTrue(heuristics.looks_like_placeholder(value))
+
+    def test_a_hex_string_does_not_read_as_digit_led_syllables(self):
+        # "a3f5c9d1b7e204863f2a" is the private_key_id in this suite's own
+        # service-account fixture. It breaks into "3f", "5c", "9d" and a first
+        # draft of the digit-led syllable read all eleven of them as an
+        # identifier, which turned SEC021 off.
+        self.assertTrue(heuristics.looks_generated("a3f5c9d1b7e204863f2a"))
+
+    def test_a_list_of_credentials_is_still_a_list_of_credentials(self):
+        # The comma filter asks whether every part is structure. One real key
+        # among them and the answer is no.
+        value = "BW-GHAPP-ID,xFlejaPdjrt25Dvr"
+        self.assertFalse(heuristics.looks_like_placeholder(value))
+
+
+class TestIdentifiersFromRoundFour(unittest.TestCase):
+    """Values bitwarden assigns to names with "password" or "key" in them."""
+
+    def test_a_feature_flag_slug_carries_a_ticket_number(self):
+        # src/Core/Constants.cs, thirteen of them. The slug filter allowed a
+        # word to carry at most two trailing digits and a bare run of at most
+        # four, and a ticket number is five.
+        for value in (
+            "pm-27086-update-authentication-apis-for-input-password",
+            "pm-31088-master-password-service-emit-salt",
+            "pm-27581-device-auth-key",
+            "enable-account-encryption-v2-jit-password-registration",
+        ):
+            with self.subTest(value=value):
+                self.assertTrue(heuristics.looks_like_placeholder(value))
+
+    def test_a_slug_word_may_be_one_letter_and_digits(self):
+        # src/Identity/.../SendAccess/SendAccessConstants.cs: "b64" is a word
+        # in this vocabulary, and it is one letter followed by two digits.
+        for value in ("password_hash_b64", "password_hash_b64_invalid",
+                      "password_hash_b64_required"):
+            with self.subTest(value=value):
+                self.assertTrue(heuristics.looks_like_placeholder(value))
+
+    def test_two_secret_names_in_one_string_are_two_names(self):
+        # Three bitwarden workflows pass this to a key-vault action under a
+        # key called "secrets". Both halves are names of secrets; neither is
+        # a secret.
+        self.assertTrue(heuristics.looks_like_placeholder("BW-GHAPP-ID,BW-GHAPP-KEY"))
+
+    def test_digits_may_begin_a_syllable_in_an_identifier(self):
+        # src/Core/Auth/.../SsoEmail2faSessionTokenable.cs assigns this string
+        # to a constant called TokenIdentifier, which is what it is.
+        self.assertTrue(heuristics.looks_like_placeholder("SsoEmail2faSessionToken"))
+        self.assertTrue(
+            heuristics.looks_like_placeholder("SsoEmail2faSessionTokenDataProtector")
+        )
+
 
 class TestTestPaths(unittest.TestCase):
     def test_fixture_trees_and_test_files_are_recognised(self):

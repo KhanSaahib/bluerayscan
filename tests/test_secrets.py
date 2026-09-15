@@ -77,6 +77,33 @@ class TestInventedCredentials(unittest.TestCase):
             with self.subTest(value=value):
                 self.assertEqual(self.scan(value), set())
 
+    def test_a_value_calling_itself_fake_is_nobody_key(self):
+        # n8n's eval fixture, whose first line reads "DO NOT USE THESE", and
+        # bitwarden's seeder fixture. "fakekey" and "dummykey" were on the
+        # list; neither of these ends in "key".
+        for value in (
+            "AKIA" + "EVALFAKEIOSFODNN",
+            "rk" + "_test_EXAMPLEfakevalue",
+            "sk-ant-api03-EVAL-FAKE-DO-NOT-USE-VFTQ7KvJ8Yp2NwM9zLcRbHsDgAeXfTqu",
+        ):
+            with self.subTest(value=value):
+                self.assertEqual(self.scan(value), set())
+
+    def test_a_slack_token_without_the_numeric_id_is_a_sentence(self):
+        # Bitwarden writes "xoxb-test-token" in three test files and
+        # "xoxb-token-from-slack" in its integrations README, and every one
+        # was reported at high severity and high confidence. Every documented
+        # Slack token carries the team or app id after the prefix.
+        for value in ("xox" + "b-test-token", "xox" + "b-token-from-slack",
+                      "xox" + "b-fake-token-for-testing"):
+            with self.subTest(value=value):
+                self.assertEqual(self.scan(value), set())
+
+    def test_a_slack_token_with_one_is_still_reported(self):
+        self.assertIn(
+            "SEC006", self.scan("xox" + "b-8403192576-3401928475610-Xk92mQp7Lz4TvB8nRw1Y")
+        )
+
     def test_the_same_shape_with_generated_bytes_is_reported(self):
         self.assertIn("SEC001", self.scan("AKIA" + "ZZ7Q4TWFN2XKLM3D"))
 
@@ -337,6 +364,27 @@ class TestTemplateFiles(unittest.TestCase):
     def test_it_is_weakened_rather_than_silenced(self):
         # A real key does get left in the file people copy.
         self.assertIn("SEC101", rule_ids(secrets.scan_text(".env.example", self.LINE)))
+
+    def test_a_committed_phoenix_key_beginning_with_a_slash_is_reported(self):
+        # Plausible's config/.env.dev, and three more .env files beside it.
+        # Phoenix generates SECRET_KEY_BASE as base64, so one in thirty-two
+        # opens with "/" and was read as a filesystem path.
+        line = (
+            "SECRET_KEY_BASE=/njrhntbycvastyvtk1zycwfm981vpo"
+            "/0xrvwjjvemdakc/vsvbrevlwsc6u8rcg\n"
+        )
+        findings = secrets.scan_text(".env.dev", line)
+        self.assertIn("SEC101", rule_ids(findings))
+
+    def test_the_unquoted_rule_says_unquoted(self):
+        # "value position" names the rule, not what the value was assigned to.
+        line = "SECRET_KEY_BASE=Xk92mQp7Lz4TvB8nRw1Y\n"
+        finding = next(
+            f for f in secrets.scan_text(".env.dev", line) if f.rule_id == "SEC101"
+        )
+        self.assertEqual(
+            finding.title, "High-entropy unquoted value assigned to 'SECRET_KEY_BASE'"
+        )
 
 
 class TestValuesWrittenBeneathTheirName(unittest.TestCase):

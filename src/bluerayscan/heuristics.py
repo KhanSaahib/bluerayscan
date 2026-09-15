@@ -64,10 +64,22 @@ _PLACEHOLDER = re.compile(
     """
 )
 
+#: The two filters below that decide on the value's opening character alone.
+#: They are named so :func:`looks_like_placeholder` can set them aside for a
+#: value that is base64 all the way through, and only those two: every other
+#: filter in the list reads the whole value and stays in force.
+#:
+#: :data:`_EXPRESSION`'s other two alternatives -- a bracket anywhere, an
+#: operator between spaces -- cannot match base64 at all, so setting the whole
+#: pattern aside costs nothing.
+_PATH = re.compile(r"^[~.]{0,2}/[^\s]*$")                  # /etc/ssl/private, ./key.pem
+_EXPRESSION = re.compile(r"^[+*/&|!?~]|.*[()\[\]]|.*\s(?:\?\??|&&|\|\||\+)\s")
+
+
 #: Values that are structure rather than secret: paths, URLs without a
 #: password in them, version constraints, dotted identifiers, dates.
 _STRUCTURED = (
-    re.compile(r"^[~.]{0,2}/[^\s]*$"),                     # /etc/ssl/private, ./key.pem
+    _PATH,
     re.compile(r"^[a-z][a-z0-9+.-]*://[^:@\s]*$", re.I),   # a URL carrying no credential
     re.compile(r"^[~^><=v\s]*\d+(?:\.\d+)*(?:[-+][\w.]+)*$", re.I),  # 1.2.3-alpha.4, ^2.0
     re.compile(r"^\d{4}-\d{2}-\d{2}[T \d:.+Z-]*$", re.I),  # timestamps
@@ -82,24 +94,46 @@ _STRUCTURED = (
     # digits and punctuation.
     re.compile(r"^_?[A-Z][A-Z0-9]*(?:[-_][A-Z0-9]+)+$"),
     # A snake- or kebab-cased identifier whose words may carry digits:
-    # "shared_credentials_2". Each word is two or more letters or a short run
-    # of digits, and the separators are what make this safe -- a generated
-    # credential does not contain them, and a JWT's base64 segments do not
-    # break into words.
+    # "shared_credentials_2", "password_hash_b64",
+    # "pm-27086-update-authentication-apis-for-input-password". A word is
+    # letters with digits allowed after them, or a run of digits on its own --
+    # a ticket number, which is how bitwarden names every one of its feature
+    # flags, thirteen of them under a name with "password" or "key" in it.
+    #
+    # What makes this safe is not the shape of a word but the separators
+    # between them, plus the one capital: a generated credential carries no
+    # "-" or "_" at all, and the base64url alphabet that does is random enough
+    # that a segment of it has capitals in the middle, which "[A-Z]?[a-z]+"
+    # refuses.
     re.compile(
-        r"^(?:[A-Z]?[a-z]{2,}[0-9]{0,2}|[0-9]{1,4})"
-        r"(?:[-_](?:[A-Z]?[a-z]{2,}[0-9]{0,2}|[0-9]{1,4}))+$"
+        r"^(?:[A-Z]?[a-z]+[0-9]*|[0-9]{1,6})"
+        r"(?:[-_](?:[A-Z]?[a-z]+[0-9]*|[0-9]{1,6}))+$"
     ),
     # Camel or Pascal case with no digits: "ImagePullSecret", "privateToken".
     # Identifiers assigned to identifier-shaped names, which is what a
     # constants file is. A generated credential carries digits or punctuation.
     # An acronym may open or close it: argo-cd assigns the string
     # "SSHPrivateKey" to a field called SSHPrivateKey, and Keycloak assigns
-    # "isAccessTokenJWT" to IS_ACCESS_TOKEN_JWT. No digits anywhere, which is
-    # the guard -- a generated password reads as humps too, and dagger's
-    # "xFlejaPdjrt25Dvr" is one. The corpus is how that was found: a first
-    # draft allowed digits between the humps and took that password with it.
-    re.compile(r"^(?:[A-Z]{2,}|[A-Za-z][a-z]*)(?:[A-Z][a-z]+)+[A-Z]*$"),
+    # "isAccessTokenJWT" to IS_ACCESS_TOKEN_JWT.
+    #
+    # A hump may also be digits that *begin* a syllable of two letters or more
+    # -- "2fa" in bitwarden's "SsoEmail2faSessionToken" -- and that is as far
+    # as digits are allowed to go. Three things had to be true at once before
+    # that was safe, and the suite names the value that taught each one:
+    #
+    # * the digits begin a syllable rather than end one, which is what keeps
+    #   dagger's password "xFlejaPdjrt25Dvr" reported: there "25" has "Dvr"
+    #   after it;
+    # * the syllable is two letters or more, and there is at least one
+    #   capitalised hump somewhere, which is what keeps a hex string out --
+    #   "a3f5c9d1b7e204863f2a" reads as "3f", "5c", "9d" and would otherwise
+    #   have been eleven digit-led syllables in a row;
+    # * a first draft allowed digits anywhere between the humps, and the
+    #   corpus said it took dagger's password with it.
+    re.compile(
+        r"^(?=.*[A-Z][a-z])(?:[A-Z]{2,}|[A-Za-z][a-z]*)"
+        r"(?:[A-Z][a-z]+|\d+[a-z]{2,})+[A-Z]*$"
+    ),
     # A version in the first word and words after it: Keycloak's
     # "oauth2DeviceAuthorizationGrantDisabledMessage". The digits have to be
     # in the *first* word and every later one has to be a capital and two or
@@ -200,7 +234,7 @@ _STRUCTURED = (
     # (The filters are applied with match(), so anything that asks "does this
     # contain" says so with a leading .* -- as the comparison pattern below
     # already does.)
-    re.compile(r"^[+*/&|!?~]|.*[()\[\]]|.*\s(?:\?\??|&&|\|\||\+)\s"),
+    _EXPRESSION,
     # A sentinel constant, which by convention starts where an identifier
     # cannot: "__n8n_BLANK_VALUE_e5362baf-...". Credentials do not.
     re.compile(r"^__"),
@@ -314,6 +348,40 @@ _EMBEDDED_INTERPOLATION = re.compile(r"\$\{|\$\(|\{\{|%\(|%\{|#\{|\{[^\s{}]{1,64
 _ANGLE_PLACEHOLDER = re.compile(r"<[A-Za-z_][\w .-]*>")
 
 
+#: Base64 over its whole length, padding included. Used only to decide whether
+#: a leading "/" or "+" is structure or coincidence.
+_BASE64_ALPHABET = re.compile(r"[A-Za-z0-9+/]+={0,2}$")
+
+#: The filters set aside for a base64 blob, and the list without them. The
+#: second is built once rather than filtered on every call.
+_LEADING_PUNCTUATION = (_PATH, _EXPRESSION)
+_INTERIOR_STRUCTURE = tuple(
+    pattern for pattern in _STRUCTURED if pattern not in _LEADING_PUNCTUATION
+)
+
+
+def _is_base64_blob(value: str) -> bool:
+    """True when ``value`` is base64 all the way through and long enough to be a key.
+
+    Base64's alphabet contains "+" and "/", so roughly one generated value in
+    thirty-two opens with a character :data:`_STRUCTURED` otherwise reads as
+    structure: a leading "/" is a filesystem path and a leading "+" the start
+    of an expression. Plausible commits a 64-character ``SECRET_KEY_BASE`` into
+    four ``.env`` files and it opens with "/", which is the whole reason it was
+    not reported.
+
+    What keeps a real path out is the length of the runs between the slashes:
+    every one has to be at least as long as the shortest thing this module will
+    call a credential, so "/etc/ssl/private" is three short words and stays a
+    path. A key is one long run, or a few.
+    """
+    if _BASE64_ALPHABET.fullmatch(value) is None:
+        return False
+    return all(
+        len(segment) >= MIN_SECRET_LENGTH for segment in value.split("/") if segment
+    )
+
+
 def looks_like_placeholder(value: str) -> bool:
     """True when a value is obviously a stand-in rather than a real credential."""
     stripped = value.strip()
@@ -328,7 +396,18 @@ def looks_like_placeholder(value: str) -> bool:
         _TYPE_UNION_ARM.fullmatch(arm.strip()) for arm in type_arms
     ):
         return True
-    if any(pattern.match(stripped) for pattern in _STRUCTURED):
+    structure = _INTERIOR_STRUCTURE if _is_base64_blob(stripped) else _STRUCTURED
+    if any(pattern.match(stripped) for pattern in structure):
+        return True
+    # A comma-separated list of things that are each structure is a list.
+    # Bitwarden passes "BW-GHAPP-ID,BW-GHAPP-KEY" to a key-vault action in
+    # three workflows: two names of secrets, under a key called "secrets".
+    # No credential contains a comma, so this asks the question once and does
+    # not recurse.
+    parts = [part.strip() for part in stripped.split(",")]
+    if len(parts) > 1 and all(
+        part and any(pattern.match(part) for pattern in _STRUCTURED) for part in parts
+    ):
         return True
     # "aaaaaaaaaaaa" and friends: one repeated character is nobody's password.
     return len(set(stripped)) <= 2

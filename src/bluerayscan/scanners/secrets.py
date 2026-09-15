@@ -320,7 +320,9 @@ def _scan_assignments(
         if not looks_generated(value):
             continue
         matched_spans.append(span)
-        shape = "quoted string" if rule_id == "SEC100" else "value position"
+        # "value position" is what the rule is called; it is not what the value
+        # was assigned to. Said the other way round it reads as English.
+        shape = "quoted string" if rule_id == "SEC100" else "unquoted value"
         yield Finding(
             rule_id=rule_id,
             severity=severity,

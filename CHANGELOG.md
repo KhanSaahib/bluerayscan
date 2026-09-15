@@ -88,6 +88,54 @@ Round three re-measurement: keycloak 193 to 154, vector 105 to 104, and six
 more findings off the pinned corpus -- `SSHPrivateKey` three times in argo-cd,
 two test passwords in discourse, one in n8n -- every one read.
 
+Four more classes and one **missed credential**, from round four --
+`bitwarden/server`, for C# and a tree full of key material that belongs there,
+and `plausible/analytics`, for Elixir and Phoenix. Neither language has a rule
+family, which is the point: rounds two and three found everything in the rules
+every repository meets.
+
+- **A generated key that opens with `/` was read as a filesystem path** --
+  which is a *missed* credential, not a false positive, and the only one the
+  programme has turned up so far. Base64's alphabet contains `/` and `+`, so
+  roughly one value in thirty-two opens with a character the filters read as
+  structure, and Plausible commits a 64-character `SECRET_KEY_BASE` that does
+  into four `.env` files. A value that is base64 all the way through is no
+  longer read as a path or an expression on its first character alone; what
+  keeps a real path out is that every run between the slashes has to be at
+  least as long as the shortest thing this tool will call a credential.
+- **SEC006 matched the `xoxb-` prefix and then anything at all.**
+  `xoxb-test-token` was a Slack token at high severity and high confidence:
+  bitwarden writes it in three test files, discourse in three specs, n8n in
+  eight places, and dagger's README writes
+  `xoxb-not-a-real-token-this-will-not-work`. Every documented Slack token
+  carries the numeric team or app id directly after the prefix, and requiring
+  that digit is what separates a token from a sentence.
+- **A slug whose words carry digits is still a slug.** Bitwarden names every
+  feature flag after its ticket number -- `pm-27086-update-authentication-apis-
+  for-input-password` -- and thirteen of those names have `password` or `key`
+  in them. A word may now be letters followed by digits, or a run of digits on
+  its own; `password_hash_b64` is the same fix from the other end.
+- **Two names in one string are two names.** `BW-GHAPP-ID,BW-GHAPP-KEY`, which
+  three bitwarden workflows hand to a key-vault action under a key called
+  `secrets`. No credential contains a comma.
+- **Digits may begin a syllable in an identifier.** `SsoEmail2faSessionToken`,
+  assigned to a constant called `TokenIdentifier`. Two letters or more after
+  the digits and at least one capitalised hump somewhere -- a second draft
+  without those read the hex string `a3f5c9d1b7e204863f2a` as eleven digit-led
+  syllables and turned SEC021 off, and the suite now names that value.
+- **"fake" and "dummy" are on the invented-word list as bare words**, rather
+  than as `fakekey` and `dummykey`. Bitwarden's `rk_test_EXAMPLEfakevalue` and
+  n8n's `AKIAEVALFAKEIOSFODNN`, the latter in a file whose first line reads
+  *DO NOT USE THESE*.
+- **SEC101's title said "value position"**, which names the rule rather than
+  what the value was assigned to. It now says "unquoted value".
+
+Round four re-measurement: bitwarden 138 to 114, plausible 17 to 21 -- the four
+extra are the `SECRET_KEY_BASE` above plus the `.env.test` that holds it -- and
+forty-nine findings off the pinned corpus, every one read and every one a value
+that announces itself: `test-secret-key-12345`, `s3_access_key_id`,
+`sk-live-abcdef123456`. terragoat and kubernetes-goat are unchanged.
+
 ### Documented
 
 - **Fourteen candidate spellings for an eighth application-code rule,

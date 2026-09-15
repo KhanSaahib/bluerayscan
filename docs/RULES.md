@@ -96,7 +96,22 @@ them fire on every fixture that needs a well-formed key: `sk-aaaaaaaa...`,
 `xoxb-...-xxxxxxxxxxxx`, `...CHANGE_ME`. A repeated character, a counted-out
 run of eight, or a word somebody typed are the three questions with no
 plausible false answer, and `--no-example-allowlist` reports them anyway --
-that flag exists to show what the scanner chose not to say.
+that flag exists to show what the scanner chose not to say. "fake" and "dummy"
+are on the word list as bare words rather than as `fakekey` and `dummykey`,
+which is what they were until bitwarden wrote `rk_test_EXAMPLEfakevalue` and
+n8n wrote `AKIAEVALFAKEIOSFODNN` into a file whose first line reads *DO NOT USE
+THESE*. Four letters is short enough to ask whether a generated value could
+carry them by accident: over a 24-character base62 body the chance is about
+three in a million.
+
+SEC006 is the one shape that had to be tightened rather than filtered. Every
+documented Slack token carries the numeric team or app id directly after the
+prefix — `xoxb-<team>-<app>-<24 alphanumerics>` — and requiring that digit is
+what separates a token from a sentence. Without it the prefix alone was the
+whole test, and `xoxb-test-token` was reported at high severity and high
+confidence: bitwarden writes it in three test files, discourse in three specs,
+n8n in eight places, and dagger's README writes
+`xoxb-not-a-real-token-this-will-not-work`.
 
 SEC004 asks two further questions, because a PEM header is quoted far more
 often than it is committed. When the `-----END-----` marker is on the *same*
@@ -245,8 +260,18 @@ Placeholders are filtered before entropy is measured at all — `your-password-h
 credential: paths, URLs without a password in them, version constraints, dotted
 identifiers, timestamps.
 
-Three of those shapes came from Keycloak and argo-cd, and each is narrow for a
-reason the corpus supplied:
+A path is the one piece of structure that had to learn an exception. Base64's
+alphabet contains `/` and `+`, so roughly one generated value in thirty-two
+opens with a character that reads as structure — and Plausible commits a
+64-character `SECRET_KEY_BASE` that opens with `/` into four `.env` files under
+`config/`. A value that is base64 all the way through is not read as a path or
+an expression on its first character alone; what keeps a real path out is the
+length of the runs between the slashes, every one of which has to be at least
+as long as the shortest thing this tool will call a credential.
+`/etc/ssl/private` is three short words and stays a path.
+
+Six of those shapes came from Keycloak, argo-cd and bitwarden, and each is
+narrow for a reason the corpus supplied:
 
 - **A label with the colon a form field wants** — `New Password:`,
   `Contrasenya:`, `Palavra-passe:`. The prose filters wanted a full stop.
@@ -256,10 +281,25 @@ reason the corpus supplied:
   credential.
 - **An identifier opening or closing with an acronym** — `SSHPrivateKey`
   assigned to a field called `SSHPrivateKey`, `isAccessTokenJWT` assigned to
-  `IS_ACCESS_TOKEN_JWT`. No digits anywhere in that shape, because a generated
-  password reads as humps too: dagger's `xFlejaPdjrt25Dvr` is one, and a first
-  draft that allowed digits between the humps took it with it. The corpus is
-  how that was found, which is what the corpus is for.
+  `IS_ACCESS_TOKEN_JWT`. Digits may *begin* a syllable of two letters or more
+  — `2fa` in bitwarden's `SsoEmail2faSessionToken` — and that is as far as
+  they go. A generated password reads as humps too: dagger's
+  `xFlejaPdjrt25Dvr` is one, and there the digits *end* a hump, with `Dvr`
+  after them. A first draft that allowed digits between the humps took
+  dagger's password with it, and a second that allowed a digit-led syllable of
+  any length read the hex string `a3f5c9d1b7e204863f2a` as eleven of them. The
+  corpus is how both were found, which is what the corpus is for.
+- **A slug whose words carry digits** — `password_hash_b64`,
+  `pm-27086-update-authentication-apis-for-input-password`. Bitwarden names
+  every feature flag after its ticket number, and thirteen of those names have
+  `password` or `key` in them. What makes the shape safe is not the words but
+  the separators plus the single capital: a generated credential carries no
+  `-` or `_`, and the base64url alphabet that does is random enough to put
+  capitals in the middle of a run.
+- **Two names in one string** — `BW-GHAPP-ID,BW-GHAPP-KEY`, which three
+  bitwarden workflows pass to a key-vault action under a key called `secrets`.
+  Both halves name a secret; neither is one. No credential contains a comma,
+  so the question is asked once over the parts and does not recurse.
 
 What the floor rejects was measured rather than assumed. Reporting values that
 miss it *narrowly* -- the obvious way to catch a real credential the floor

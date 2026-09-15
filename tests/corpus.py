@@ -34,7 +34,9 @@ SECRETS_FILE = "\n".join(
         "fine_grained = " + '"github' + "_pat_" + _filler(60) + '"',
         "-----BEGIN " + "OPENSSH PRIVATE KEY-----",
         'stripe = "sk' + "_live_" + _filler(24) + '"',
-        'slack = "xox' + "b-" + _filler(24) + '"',
+        # The numeric team id after the prefix is part of the shape SEC006
+        # looks for; without it this is a sentence beginning "xoxb-".
+        'slack = "xox' + "b-8403192576-" + _filler(24) + '"',
         'google = "AIz' + "a" + _filler(35) + '"',
         'openai = "sk' + "-proj-" + _filler(32) + '"',
         "jwt = " + '"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhYmMxMjM0NTY3ODkifQ.' + _filler(24) + '"',
