@@ -53,6 +53,17 @@ class TestPinnedCorpus(unittest.TestCase):
             [repository["name"] for repository in self.repositories],
         )
 
+    def test_the_repositories_that_produced_fixes_are_pinned(self):
+        # An unpinned repository protects nothing: round eight can silently
+        # undo what round five fixed, and the comparison that would have
+        # caught it never runs. These five each carry a language or a file
+        # format none of the other twenty-one does.
+        names = {repository["name"] for repository in self.repositories}
+        self.assertTrue(
+            {"plausible", "bitwarden-server", "signal-ios", "signal-android",
+             "bazel"} <= names
+        )
+
     def test_the_vulnerable_repositories_are_still_in_it(self):
         # They measure the other direction. A corpus of clean repositories
         # rewards a rule that finds nothing.

@@ -251,6 +251,27 @@ references. The 594 findings in terraform-provider-aws were read: the
 Terraform family was right about every one of the 470 in `testdata/`, and had
 already lowered their confidence.
 
+- **Five of the repositories the precision programme read are now pinned**, so
+  what rounds four to seven fixed stays fixed: `plausible` (Elixir and
+  Phoenix), `bitwarden-server` (C#), `signal-ios` (Swift, `.plist`,
+  `.xcconfig`), `signal-android` (Kotlin and Gradle) and `bazel` (Starlark).
+  Each carries a language or a file format none of the other twenty-one does,
+  and an unpinned repository protects nothing -- round eight can silently undo
+  what round five fixed, and the comparison that would have caught it never
+  runs. The corpus is twenty-six.
+
+  Three more were read in full and deliberately **not** pinned, with the
+  reasoning recorded beside the pins: a pin costs every future measurement
+  twice over and costs a contributor a clone.
+  `terraform-provider-aws` is 87 seconds of scan for one class that was already
+  correct, `azureml-examples` is 931 MB for a behaviour a unit test pins with a
+  synthetic payload, and `azure-pipelines-tasks` is 251 MB for a single class.
+
+  Every measurement recorded before this -- here, in `ROADMAP.md` and in the
+  documentation -- was taken across twenty-one repositories and says so. Those
+  are records of what was measured rather than claims about the corpus's
+  present size, and they have not been restated.
+
 ### Documented
 
 - **Fourteen candidate spellings for an eighth application-code rule,

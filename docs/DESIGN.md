@@ -97,12 +97,35 @@ Two consequences worth knowing before touching a rule:
 If you find yourself lowering a severity because a rule is unreliable, lower
 the confidence instead. That is what it is for.
 
-### Findings left alone on purpose
+### The corpus, and what a round adds to it
 
 The precision programme reads every finding in a repository the corpus has
-never seen and fixes what is wrong. Some of what it reads is right, and some is
-wrong in a way no narrow fix reaches. Both get written down, so the next person
-reading the same output does not re-derive the argument.
+never seen and fixes what is wrong. A repository that produced a fix then has a
+claim on being pinned, because an unpinned one protects nothing: round eight
+can silently undo what round five fixed, and the comparison that would have
+caught it never runs. Five were pinned after rounds four to seven -- plausible,
+bitwarden-server, signal-ios, signal-android and bazel -- each for a language
+or a file format none of the other twenty-one carried.
+
+Three more were read in full and deliberately left unpinned, because a pin
+costs every future measurement twice over and costs a contributor a clone.
+terraform-provider-aws is 87 seconds of scan for one class that was already
+correct; azureml-examples is 931 MB for a behaviour a unit test pins with a
+synthetic payload; azure-pipelines-tasks is 251 MB for a single class. The
+reasoning is in `tools/corpus.json` beside the pins, where somebody proposing
+a twenty-seventh will read it.
+
+One consequence worth knowing when reading older numbers: every measurement
+recorded before that change -- in `ROADMAP.md`, in `CHANGELOG.md`, and in the
+prose here and in `docs/RULES.md` -- was taken across **twenty-one**
+repositories, and says so. They are records of what was measured, not claims
+about the corpus's present size, and they have deliberately not been restated.
+
+### Findings left alone on purpose
+
+Some of what the programme reads is right, and some is wrong in a way no narrow
+fix reaches. Both get written down, so the next person reading the same output
+does not re-derive the argument.
 
 - **`check_hostname = False` inside `if not validate_certs:`** (ansible). A
   correct finding about a line that is guarded. Telling them apart needs

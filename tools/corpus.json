@@ -4,10 +4,24 @@
     "commit they were measured at. Pinned so that a change to a rule can be",
     "measured rather than argued about: the same trees, the same findings,",
     "and a difference that means something. Chosen for what they contain, not",
-    "for fame -- between them they carry every format the tool reads, in five",
+    "for fame -- between them they carry every format the tool reads, in nine",
     "programming languages, with a translated interface and a fixture tree.",
     "The last two are deliberately vulnerable and measure the other",
-    "direction: what the rules fail to notice."
+    "direction: what the rules fail to notice.",
+    "",
+    "The five added after the precision programme's rounds four to seven are",
+    "there because those rounds found real bugs in trees nothing here",
+    "resembled, and an unpinned repository protects nothing: round eight can",
+    "silently undo what round five fixed. Each carries a language or a file",
+    "format none of the others does.",
+    "",
+    "Three more were read in full and are deliberately NOT pinned, because a",
+    "pin costs every future measurement twice over and a contributor one",
+    "clone. terraform-provider-aws is 87 seconds of scan for one class that",
+    "was already correct; azureml-examples is 931 MB for a behaviour",
+    "tests/test_secrets.py pins with a synthetic payload; azure-pipelines-",
+    "tasks is 251 MB for a single class. What they found is in the CHANGELOG",
+    "and in tests that name the file."
   ],
   "repositories": [
     {
@@ -135,6 +149,36 @@
       "url": "https://github.com/madhuakula/kubernetes-goat",
       "commit": "723a0db478f050d173d23b4ce5044b65bce0bdd0",
       "for": "deliberately vulnerable workloads: recall"
+    },
+    {
+      "name": "plausible",
+      "url": "https://github.com/plausible/analytics",
+      "commit": "5716baab58b7faf62d721453ed9880de18e48ede",
+      "for": "Elixir and Phoenix: a committed SECRET_KEY_BASE in four .env files"
+    },
+    {
+      "name": "bitwarden-server",
+      "url": "https://github.com/bitwarden/server",
+      "commit": "77bb391404e40ffecc74ef7002c49f664e0c4289",
+      "for": "C#: feature flags named after ticket numbers, and real key material"
+    },
+    {
+      "name": "signal-ios",
+      "url": "https://github.com/signalapp/Signal-iOS",
+      "commit": "16cf50a6de143c9e1d0b044f6f258f107916116c",
+      "for": "Swift, .plist and .xcconfig: constants whose value is their own name"
+    },
+    {
+      "name": "signal-android",
+      "url": "https://github.com/signalapp/Signal-Android",
+      "commit": "b92917acdb067e83a9a79122d7496d66c5880b71",
+      "for": "Kotlin and Gradle: a Firebase key that ships inside the binary"
+    },
+    {
+      "name": "bazel",
+      "url": "https://github.com/bazelbuild/bazel",
+      "commit": "5604b553b2a54152e5e4f41ef4b01a416b7bfd44",
+      "for": "Starlark, and a build system's own shell: chmod +w"
     }
   ]
 }
