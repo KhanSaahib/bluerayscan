@@ -153,7 +153,7 @@ CRITICAL SEC001  terraform/main.tf:14
     fix: Deactivate the key in IAM, then rotate it. Deleting the commit is not enough.
 
 HIGH SEC101  .env.staging:7  (medium confidence)
-    High-entropy value position assigned to 'DATABASE_PASSWORD'
+    High-entropy unquoted value assigned to 'DATABASE_PASSWORD'
     evidence: Tv8n************Lz4T
     fix: Move the value to an environment variable or secret store.
 

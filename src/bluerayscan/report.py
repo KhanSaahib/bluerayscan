@@ -91,7 +91,7 @@ def _repeat_note(finding: Finding) -> str:
     return f" (and on {finding.occurrences - 1} more line{'' if finding.occurrences == 2 else 's'})"
 
 
-def _body(finding: Finding, indent: str) -> "list[str]":
+def _body(finding: Finding, indent: str, *, fix: bool = True) -> "list[str]":
     lines = [f"{indent}{finding.title}{_repeat_note(finding)}"]
     if finding.origin:
         # Only a scan of history sets this, and when it is set it is the most
@@ -100,9 +100,20 @@ def _body(finding: Finding, indent: str) -> "list[str]":
         lines.append(f"{indent}added in: {finding.origin}")
     if finding.evidence:
         lines.append(f"{indent}evidence: {finding.evidence}")
-    if finding.remediation:
+    if finding.remediation and fix:
         lines.append(f"{indent}fix: {finding.remediation}")
     return lines
+
+
+def _fix_note(repeats: int) -> "list[str]":
+    """Say that a fix was printed once, and only when one actually was not."""
+    if repeats < 1:
+        return []
+    repeated = "repeat was" if repeats == 1 else "repeats were"
+    return [
+        f"Each fix is printed on the first finding that carries it; "
+        f"{repeats:,} {repeated} left out."
+    ]
 
 
 def format_text(
@@ -121,6 +132,28 @@ def format_text(
     thing that changes on every line.
     """
     lines: list[str] = []
+    # A remediation is usually the same sentence every time its rule fires, and
+    # the same argument applies to it as to the path under ``by_file``:
+    # azureml's 355 generated workflows produce 845 unpinned actions, and
+    # printing the same forty words 845 times is 845 times nothing. Each
+    # distinct one is printed on the first finding that carries it, where
+    # somebody reading top to bottom meets it.
+    #
+    # Keyed on the sentence rather than on the rule, because a rule may have
+    # more than one: SH003 says something different about "chmod 777" than
+    # about "chmod +w", and keying on the rule id would have printed whichever
+    # came first and silently dropped the other.
+    explained: "set[str]" = set()
+    repeats = 0
+
+    def wants_fix(finding: Finding) -> bool:
+        nonlocal repeats
+        if finding.remediation in explained:
+            repeats += 1
+            return False
+        explained.add(finding.remediation)
+        return True
+
     if by_file:
         current = None
         for finding in findings:
@@ -135,7 +168,7 @@ def format_text(
                 f"  line {finding.line}{_confidence_note(finding, colour=colour)}"
             )
             lines.append(header)
-            lines.extend(_body(finding, "      "))
+            lines.extend(_body(finding, "      ", fix=wants_fix(finding)))
         if findings:
             lines.append("")
     else:
@@ -146,10 +179,11 @@ def format_text(
                 f"{_confidence_note(finding, colour=colour)}"
             )
             lines.append(header)
-            lines.extend(_body(finding, "    "))
+            lines.extend(_body(finding, "    ", fix=wants_fix(finding)))
             lines.append("")
 
     lines.append(summarise(findings) if findings else _CLEAN)
+    lines.extend(_fix_note(repeats))
     lines.extend(notes)
     return "\n".join(lines)
 

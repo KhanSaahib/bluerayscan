@@ -47,6 +47,56 @@ class TestText(unittest.TestCase):
         self.assertIn("\033", report.format_text([CRITICAL], colour=True))
 
 
+class TestRepeatedFixes(unittest.TestCase):
+    """A rule's remediation is the same sentence every time it fires."""
+
+    def three(self):
+        return [
+            dataclasses.replace(CRITICAL, path=f"a{n}.tf", line=n) for n in range(3)
+        ]
+
+    def test_the_fix_is_printed_once_and_the_rest_are_counted(self):
+        text = report.format_text(self.three(), colour=False)
+        self.assertEqual(text.count("fix: Deactivate the key in IAM."), 1)
+        self.assertIn("2 repeats were left out", text)
+
+    def test_every_finding_still_appears_in_full_otherwise(self):
+        text = report.format_text(self.three(), colour=False)
+        for n in range(3):
+            self.assertIn(f"a{n}.tf:{n}", text)
+        self.assertEqual(text.count("AWS access key id"), 3)
+
+    def test_two_rules_each_get_their_own(self):
+        text = report.format_text([CRITICAL, GUESS], colour=False)
+        self.assertNotIn("left out", text)
+
+    def test_one_rule_with_two_fixes_gets_both(self):
+        # SH003 says something different about "chmod 777" than about
+        # "chmod +w", where the umask decides. Keying on the rule id would
+        # have printed whichever came first and dropped the other.
+        other = dataclasses.replace(
+            CRITICAL, path="b.tf", remediation="Rotate it at the provider."
+        )
+        text = report.format_text([CRITICAL, other], colour=False)
+        self.assertIn("fix: Deactivate the key in IAM.", text)
+        self.assertIn("fix: Rotate it at the provider.", text)
+        self.assertNotIn("left out", text)
+
+    def test_one_repeat_is_said_in_the_singular(self):
+        text = report.format_text(self.three()[:2], colour=False)
+        self.assertIn("1 repeat was left out", text)
+
+    def test_grouping_by_file_counts_the_same_way(self):
+        text = report.format_text(self.three(), colour=False, by_file=True)
+        self.assertEqual(text.count("fix: Deactivate the key in IAM."), 1)
+        self.assertIn("2 repeats were left out", text)
+
+    def test_the_note_sits_above_the_notes(self):
+        text = report.format_text(self.three(), colour=False, notes=["3 accepted."])
+        self.assertTrue(text.endswith("3 accepted."))
+        self.assertIn("left out", text)
+
+
 class TestRepeatedValues(unittest.TestCase):
     """One credential pasted many times is one finding, and says so."""
 

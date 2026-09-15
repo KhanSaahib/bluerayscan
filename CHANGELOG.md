@@ -209,6 +209,18 @@ and two findings off the pinned corpus -- an `access_token=` fragment and a JWT
 prefix being concatenated in an n8n test. The AZ family and the Kubernetes
 rules were read across 87 findings and had nothing wrong in them.
 
+- **Each distinct fix is printed on the first finding that carries it**, rather
+  than on every one.
+  Azure's machine-learning examples generate a workflow per example, 355 of
+  them, and produce 845 unpinned-action findings; the report printed the same
+  forty-word remediation 845 times and came to 6,422 lines. It is now 5,148.
+  The count of what was left out goes in the summary, because silently
+  dropping a line from a security report is worse than the repetition. Keyed on
+  the sentence rather than on the rule, because a rule may have more than one --
+  SH003 says something different about `chmod 777` than about `chmod +w`. JSON,
+  SARIF and the other four formats are unchanged -- they are read by machines,
+  which do not mind.
+
 ### Documented
 
 - **Fourteen candidate spellings for an eighth application-code rule,
