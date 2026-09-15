@@ -37,6 +37,30 @@ better outcome than a feature nobody wanted.
       rest are one variable assigned to another, a class name, a Vault
       reference. The floor's margin is what holds those back. Numbers in
       `docs/RULES.md`
+- [x] JSON's quoted keys, which the quoted-assignment rule could not match at
+      all: the name's own closing quote sits between the name and the colon.
+      Measured before the fix across 54 saved scans of thirty-odd
+      repositories -- 3,280 entropy findings, and not one of them in a `.json`
+      file. `appsettings.json`, `serverless.json` and every editor's SFTP
+      config are this shape
+- [ ] ~~PHP's `define('AUTH_KEY', '...')`, which names a constant with a
+      function call and so has no `=` or `:` for any assignment pattern to
+      find~~ -- written, measured and removed. It is the right shape for
+      WordPress, whose `wp-config.php` carries eight sixty-four-character
+      salts and is the most-deployed PHP configuration file there is. It
+      earns nothing today for two reasons, and the second is the interesting
+      one:
+      **(a)** Laravel is the corpus's PHP, and it defines no credential
+      constants -- zero matches across the pinned repositories, which is the
+      bar this project sets for an addition.
+      **(b)** WordPress salts are drawn from the full printable set and
+      contain brackets, so `_EXPRESSION` -- the filter that says "brackets do
+      not appear in credentials, they appear in expressions" -- rejects every
+      one of them. That filter is right about a fragment picked up by a loose
+      regex and wrong about a whole string literal matched exactly. Closing
+      this needs a way to say *this literal came from an exact syntactic
+      match, so the code-fragment filter does not apply*, and that is a change
+      to how candidates carry their provenance rather than another pattern
 - [x] The question that idea was asking -- *did you miss my secret?* -- gets
       an answer that costs nothing instead: `bluerayscan explain VALUE
       --name NAME` prints the measurements and says what would happen to it

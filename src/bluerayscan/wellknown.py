@@ -92,8 +92,9 @@ def is_interpolated(value: str) -> bool:
 #: them throughout while this list knew only the last. Normalising is what
 #: makes "__fixtures__" and "__mocks__" unnecessary as separate entries.
 _TEST_DIRECTORIES = frozenset(
-    {"testdata", "test", "tests", "fixtures", "testfixtures", "testing", "mocks",
-     "spec", "specs", "examples", "example", "e2e", "integration"}
+    {"testdata", "test", "tests", "fixture", "fixtures", "testfixtures",
+     "testing", "mocks", "spec", "specs", "examples", "example", "e2e",
+     "integration"}
 )
 _DIRECTORY_SEPARATORS = re.compile(r"[-_.]+")
 _TEST_NAME_MARKERS = ("_test.", "test_", ".test.", "_spec.", "mock_", "_mock.")

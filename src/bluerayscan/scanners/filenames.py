@@ -67,6 +67,16 @@ _ALWAYS_CREDENTIALS = {
     ".dockercfg": "registry credentials",
     "credentials": "cloud provider credentials",
     "kubeconfig": "cluster credentials",
+    # Found by pointing the scanner at a repository built to contain one of
+    # everything, and reading what it did *not* say. Each of these is a name
+    # that means a credential and means nothing else.
+    ".git-credentials": "the passwords git was told to remember, in plain text",
+    ".htpasswd": "the password hashes a web server authenticates against",
+    "master.key": "the key that decrypts a Rails credentials file",
+    ".s3cfg": "an S3 access key and secret key",
+    ".esmtprc": "a mail account's password",
+    "proftpdpasswd": "FTP account passwords",
+    ".credentials": "cloud provider credentials",
 }
 
 #: Password managers, by the extension of the file they keep everything in.
@@ -90,6 +100,11 @@ _MAYBE_CREDENTIALS = {
     ".pypirc": "a PyPI upload token",
     ".env": "whatever the application keeps out of its source",
     "terraform.tfvars": "whatever the infrastructure needs and the code does not hard-code",
+    # Every editor grew an upload-on-save plugin, and every one of them keeps
+    # the host and the password for it in a file beside the project.
+    ".ftpconfig": "an FTP or SFTP password",
+    "sftp-config.json": "an FTP or SFTP password",
+    ".remote-sync.json": "an FTP or SFTP password",
 }
 
 #: ``NAME=value`` or ``NAME: value`` -- enough to find the key in the formats

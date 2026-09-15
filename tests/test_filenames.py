@@ -56,8 +56,18 @@ class TestCredentialFiles(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertIn("FN003", rule_ids(scan(name, "anything at all\n")))
 
+    def test_the_names_a_repository_of_secrets_was_silent_about(self):
+        # Found by pointing the scanner at Plazmaz/leaky-repo and reading what
+        # it did *not* say. Each of these is a name that means a credential
+        # and means nothing else.
+        for name in (".git-credentials", ".htpasswd", "master.key", ".s3cfg",
+                     ".esmtprc", "proftpdpasswd", ".credentials"):
+            with self.subTest(name=name):
+                self.assertIn("FN003", rule_ids(scan(name, "anything at all\n")))
+
     def test_a_file_that_might_hold_one_is_judged_on_what_it_holds(self):
-        for name in (".npmrc", ".pypirc", "terraform.tfvars", ".env"):
+        for name in (".npmrc", ".pypirc", "terraform.tfvars", ".env",
+                     ".ftpconfig", "sftp-config.json", ".remote-sync.json"):
             with self.subTest(name=name):
                 self.assertIn("FN003", rule_ids(scan(name, self.SECRET)))
                 self.assertEqual(scan(name, "ignore-scripts=true\n"), [])

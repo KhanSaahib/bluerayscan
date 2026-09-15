@@ -88,6 +88,13 @@ _QUOTED_ASSIGNMENT = re.compile(
            private[_-]?key|client[_-]?secret|credential|
            auth[_-]?(?:token|key|secret|pass|pw|header)|authorization|bearer)
      [A-Za-z0-9_.\[\]-]*)
+    # JSON quotes its keys, and the name's own closing quote sits between the
+    # name and the colon: '"HEROKU_API_KEY": "7a2f..."'. Without this the
+    # pattern could not match a JSON document at all -- measured across 54
+    # saved scans of thirty-odd repositories, 3,280 entropy findings, and not
+    # one of them in a .json file. appsettings.json, serverless.json and
+    # firebase.json are all this shape.
+    (?P<nameclose>["']?)
     \s* [:=] \s*
     # An escaped quote is part of the string, not the end of it. Without this
     # a translated sentence containing \" is cut in half, and the half that
@@ -108,6 +115,42 @@ _QUOTED_ASSIGNMENT = re.compile(
 #: ``# pwdhash => "$2b$12$..."``, and that is a bcrypt hash -- a thing this
 #: scanner has filtered since the beginning, reported anyway because the
 #: modular-crypt pattern begins ``^\$``.
+#: A ternary's colon, which reads as an assignment once the name may be
+#: quoted. ``isSelfHosted ? "Database:SelfHostPassword" : "Database:Password"``
+#: is one line of bitwarden's AppHost, and n8n logs
+#: ``total === 1 ? 'credential.' : 'credentials.'`` -- in both the "name" is
+#: the first arm and the "value" is the second. A ternary always writes its
+#: "?" with space around it before the colon, and JSON cannot contain one.
+_TERNARY = re.compile(r"\?\s")
+
+
+def _is_ternary_arm(line: str, match: "re.Match[str]") -> bool:
+    """True when a quoted name is the first arm of a ternary, not a key.
+
+    Keyed on the quote the pattern had to consume between the name and the
+    colon, rather than on the character in front of the name: bitwarden's name
+    starts *inside* its string, after "Database:", so there is no quote there
+    to look at.
+    """
+    if not match.group("nameclose"):
+        return False
+    return _TERNARY.search(line, 0, match.start("name")) is not None
+
+
+#: npm scopes an auth setting to one registry by putting the registry inside
+#: the key: ``//registry.npmjs.org/:_authToken=...``. The separator that
+#: matters is the ``=`` at the end, and :data:`_BARE_ASSIGNMENT`'s non-greedy
+#: name stops at the ``:`` inside the URL long before it -- so the name read
+#: was "//registry.npmjs.org/", which promises nothing, and the token went
+#: unreported. npm's classic token is a UUID and that line is the whole of it.
+#:
+#: The name is still put through :func:`is_secret_name`, so ``:email=`` and
+#: ``:username=`` on the neighbouring lines are answered the same way they
+#: would be anywhere else.
+_NPM_SCOPED_ASSIGNMENT = re.compile(
+    r"^//[^\s:=]+:(?P<name>[A-Za-z_][\w-]*)\s*=\s*(?P<value>\S+)\s*$"
+)
+
 _BARE_ASSIGNMENT = re.compile(
     r"""(?x)
     ^[\s#-]* (?:export\s+)?
@@ -150,6 +193,9 @@ _VALUE_POSITION_NAMES = frozenset(
     {
         ".env", ".npmrc", ".pypirc", ".netrc", "_netrc", ".dockercfg", ".pgpass",
         ".my.cnf", "crontab",
+        # s3cmd's configuration is an INI file under a name with no extension
+        # to key on, and "secret_key = ..." in it is exactly what it says.
+        ".s3cfg", ".credentials",
     }
 )
 #: TOML is absent on purpose: it requires quotes, so its credentials are
@@ -283,6 +329,8 @@ def _scan_assignments(
             # tokenPattern. The bare-assignment path below has always asked it.
             if not is_secret_name(match.group("name")):
                 continue
+            if _is_ternary_arm(line, match):
+                continue
             candidates.append(
                 (
                     "SEC100",
@@ -304,6 +352,18 @@ def _scan_assignments(
         if wrapper is not None:
             offset = wrapper.end()
             line = line[offset:].rstrip('"')
+
+        scoped = _NPM_SCOPED_ASSIGNMENT.match(line)
+        if scoped is not None and is_secret_name(scoped.group("name")):
+            candidates.append(
+                (
+                    "SEC101",
+                    scoped.group("name"),
+                    (scoped.start("value") + offset, scoped.end("value") + offset),
+                    scoped.group("value"),
+                    Severity.HIGH,
+                )
+            )
 
         bare = _BARE_ASSIGNMENT.match(line)
         if bare is not None and is_secret_name(bare.group("name")):
