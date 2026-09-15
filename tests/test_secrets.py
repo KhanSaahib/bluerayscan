@@ -417,6 +417,40 @@ class TestTemplateFiles(unittest.TestCase):
         line = 'const token = "Xk92mQp7Lz4TvB8nRw1Y"; const n = a + b;\n'
         self.assertIn("SEC100", rule_ids(secrets.scan_text("util.ts", line)))
 
+    def test_a_json_key_is_read_like_any_other_name(self):
+        # JSON quotes its keys, and the name's own closing quote sat between
+        # the name and the colon -- so the rule could not match a JSON
+        # document at all. Measured before the fix across 54 saved scans of
+        # thirty-odd repositories: 3,280 entropy findings, none in a .json.
+        line = '  "HEROKU_API_KEY": "7a2f9a4289e530bef6dbf31f4cbf63d5"\n'
+        self.assertIn("SEC100", rule_ids(secrets.scan_text("heroku.json", line)))
+
+    def test_a_ternary_is_not_an_assignment(self):
+        # The cost of allowing a quoted name: 'a' : 'b' reads like one.
+        # bitwarden's AppHost and n8n's importer each write one.
+        for line in (
+            'var k = self ? "Database:SelfHostPassword" : "Database:Password";',
+            "const t = n === 1 ? 'credential.' : 'credentials.';",
+        ):
+            with self.subTest(line=line):
+                self.assertEqual(rule_ids(secrets.scan_text("a.cs", line + "\n")), set())
+
+    def test_an_npm_registry_scoped_token_is_read(self):
+        # npm puts the registry inside the key, so a non-greedy name stops at
+        # the colon in the URL. The token is a UUID and that line is all of it
+        # -- assembled, because GitHub's push protection reads the whole line
+        # as an npm Access Token and refused the commit that first carried it.
+        line = (
+            "//registry.npmjs.org/:_auth" + "Token="
+            + "26dfe8d8-889b-4380-92ff-9c3c6ea5d930\n"
+        )
+        self.assertIn("SEC101", rule_ids(secrets.scan_text(".npmrc", line)))
+
+    def test_s3cmd_configuration_is_a_value_position_format(self):
+        line = "secret_key = yLryKGwcGc3ez9G8YAnjeYMQOc\n"
+        self.assertIn("SEC101", rule_ids(secrets.scan_text(".s3cfg", line)))
+        self.assertIn("SEC101", rule_ids(secrets.scan_text("cloud/.credentials", line)))
+
     def test_a_committed_phoenix_key_beginning_with_a_slash_is_reported(self):
         # Plausible's config/.env.dev, and three more .env files beside it.
         # Phoenix generates SECRET_KEY_BASE as base64, so one in thirty-two

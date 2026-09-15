@@ -335,7 +335,15 @@ class TestFixturesAreNotCredentials(unittest.TestCase):
     The convention is to assemble the shape instead: "gh" + "p_" + filler(36).
     The string that reaches the rule is identical, which is the only part the
     rule sees. This asserts the convention rather than trusting it, by running
-    the scanner over its own test sources.
+    the scanner over its own sources.
+
+    Two things this cannot promise, both learned the hard way. It reads the
+    shapes *this* tool documents, and GitHub knows others: a line reading
+    "//registry.npmjs.org/:_auth" "Token=" and a UUID is an npm Access Token to
+    push protection and a plain entropy finding here, and it refused a commit
+    over one. And a comment is as readable as a fixture, which is why this
+    walks the source tree as well as the tests -- the other half of that
+    refusal was a docstring in heuristics.py.
     """
 
     def test_no_documented_token_shape_is_written_out_whole(self):
@@ -349,6 +357,20 @@ class TestFixturesAreNotCredentials(unittest.TestCase):
             # The provider rules are the documented shapes; the entropy rules
             # and the application-code rules report idioms, which are what
             # these files are about and which no credential scanner reports.
+            if finding.rule_id.startswith("SEC") and finding.rule_id < "SEC100"
+        ]
+        self.assertEqual(written_out, [], "assemble the shape instead of writing it out")
+
+    def test_the_source_tree_is_held_to_the_same_rule(self):
+        # A well-formed credential in a comment is exactly as readable as one
+        # in a fixture, and costs the same stranger the same afternoon.
+        from bluerayscan import engine
+
+        source_root = Path(__file__).resolve().parent.parent / "src"
+        report = engine.scan(str(source_root))
+        written_out = [
+            f"{finding.path}:{finding.line} {finding.rule_id}"
+            for finding in report.findings
             if finding.rule_id.startswith("SEC") and finding.rule_id < "SEC100"
         ]
         self.assertEqual(written_out, [], "assemble the shape instead of writing it out")

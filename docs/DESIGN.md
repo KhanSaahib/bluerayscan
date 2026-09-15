@@ -230,6 +230,21 @@ does not re-derive the argument.
   `inputs.core_contributors` and `inputs.user_login`, and both are the
   composite action's own untrusted inputs.
 
+- **A JSON example inside a Javadoc comment** (spring-boot,
+  `CloudFoundryVcapEnvironmentPostProcessor.java`: a sample `VCAP_SERVICES`
+  blob with `"password":"pxLsGVpsC9A5S"` in it). <!-- bluerayscan: ignore[SEC100] -->
+  The one medium-confidence false positive the JSON change introduced across
+  the whole corpus, and the same class as the connection string in a Python
+  docstring above: documentation inside a source file, which the path-based
+  downgrade cannot see. Quoting it here tripped the rule on this file, which
+  is the second entry in this list to prove its own point; the marker on the
+  line above is the answer both times.
+- **Two hundred and forty passwords in a password manager's seed data**
+  (bitwarden-server, `util/Seeder/Seeds/fixtures/ciphers/`). Correct, and
+  uniquely pathological: the fixture is a vault, so every item in it has a
+  generated password. They arrive at low confidence because the tree is a
+  fixture tree, which is the whole reason that axis exists.
+
 ## Five CI systems, one bug
 
 GitHub expands `${{ github.event.issue.title }}`, GitLab expands

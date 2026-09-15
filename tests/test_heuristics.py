@@ -369,6 +369,38 @@ class TestReferencesFromRoundSeven(unittest.TestCase):
                 self.assertTrue(heuristics.looks_like_placeholder(value))
 
 
+class TestRecallFromLeakyRepo(unittest.TestCase):
+    """Values a repository built to hold secrets said nothing about."""
+
+    def test_a_uuid_is_generated_by_definition(self):
+        # npm's classic auth token is a UUID and nothing else. Hex with four
+        # hyphens in it lands about a sixth of a bit under the floor, every
+        # time, so the floor alone could never report one.
+        self.assertTrue(heuristics.looks_generated("26dfe8d8-889b-4380-92ff-9c3c6ea5d930"))
+
+    def test_the_name_is_still_the_gate_for_one(self):
+        # "client_id" is the identifier that is usually a UUID and usually
+        # public. It does not promise a credential, so nothing asks.
+        self.assertFalse(heuristics.is_secret_name("client_id"))
+
+    def test_a_word_with_trailing_digits_is_part_of_a_phrase(self):
+        # n8n's interface: "Connect OAuth2 Credential". The phrase filter let
+        # a bare version number be a word but not a word carrying one, so
+        # thirteen translated labels in discourse were reported at medium.
+        for value in ("Connect OAuth2 Credential", "Custom OAuth2",
+                      "Default - None", "Token URL for OAuth2"):
+            with self.subTest(value=value):
+                self.assertTrue(heuristics.looks_like_placeholder(value))
+
+    def test_a_bearer_token_is_still_two_words_and_still_a_credential(self):
+        value = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+        self.assertFalse(heuristics.looks_like_placeholder(value))
+
+    def test_a_path_under_a_shouted_directory_is_a_path(self):
+        # gh's tests expect "tokenSource":"GH_CONFIG_DIR/hosts.yml".
+        self.assertTrue(heuristics.looks_like_placeholder("GH_CONFIG_DIR/hosts.yml"))
+
+
 class TestTestPaths(unittest.TestCase):
     def test_fixture_trees_and_test_files_are_recognised(self):
         for path in (

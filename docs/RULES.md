@@ -169,11 +169,22 @@ by construction, so entropy there would fire on every certificate in the tree.
 SEC100 and SEC101 are the heuristics. They fire when a name that promises a
 credential (`password`, `api_key`, `client_secret`, …) is assigned a value that
 looks generated rather than written. SEC100 reads quoted assignments in source
-code; SEC101 reads the formats that write credentials bare — `.env`, `.npmrc`,
-`.pypirc`, INI files, YAML, a crontab, and a systemd unit — where there is no
+code, JSON included — JSON quotes its keys, so the name's own closing quote
+sits between the name and the colon, and until that was allowed for the rule
+could not match a JSON document at all: measured across 54 saved scans of
+thirty-odd repositories, 3,280 entropy findings, and not one of them in a
+`.json` file. The cost of allowing it is that `cond ? "a" : "b"` reads like an
+assignment too, so a quoted name preceded by a ternary's `?` is skipped; SEC101 reads the formats that write credentials bare — `.env`, `.npmrc`,
+`.pypirc`, `.s3cfg`, `.credentials`, INI files, YAML, a crontab, and a systemd
+unit — where there is no
 quoting to key on, and where the file's own syntax has to stand in for it. A
 unit wraps its assignment in one of its own (`Environment=DB_PASSWORD=…`), and
-the name that matters is the inner one.
+the name that matters is the inner one. npm does the same thing from the other
+end: it scopes a setting to one registry by putting the registry inside the key,
+`//registry.npmjs.org/:_authToken=…`, and the name that matters is again the
+inner one — a non-greedy name stops at the colon in the URL long before the
+`=`, so the token went unreported and npm's classic token is a UUID and nothing
+else.
 
 SEC101 also reads a value written on the lines *beneath* its name, which is
 how YAML carries anything long:
@@ -200,6 +211,14 @@ will not see it unless you pass `--no-gitignore`. Where it earns its keep by
 default is the committed cousins — `.env.example` with a real value left in it,
 a `docker-compose.yml` with a database password inline, an `.npmrc` carrying a
 publish token.
+
+A UUID is a special case of the floor rather than an exception to it: hex with
+four hyphens in it lands about a sixth of a bit short, every time, so the floor
+alone could never report one. npm's classic auth token is a UUID and nothing
+else. A value in that shape was produced by something that generates them, so
+it counts as generated — and the name on the other side of the assignment is
+still the gate, which is what keeps `client_id`, the one identifier that is
+usually a UUID and usually public, out of it.
 
 "Looks generated" is a moving bar rather than a fixed one, because the maximum
 entropy a string can carry depends on its alphabet and its length. A 12-character
@@ -421,11 +440,19 @@ if it is text, SEC004 has already looked inside, and its answer is better than a
 guess about the extension.
 
 FN003 splits the same way. `.netrc`, `.pgpass`, `.my.cnf`, `.dockercfg`,
-`credentials` and `kubeconfig` have no legitimate committed form, so the name is
-the finding. `.npmrc`, `.pypirc`, `.env` and `terraform.tfvars` are judged on
-what is in them: an `.npmrc` saying `ignore-scripts=true` is not a leak, and a
+`credentials`, `.credentials`, `kubeconfig`, `.git-credentials`, `.htpasswd`,
+`master.key`, `.s3cfg`, `.esmtprc` and `proftpdpasswd` have no legitimate
+committed form, so the name is the finding. `.npmrc`, `.pypirc`, `.env`,
+`terraform.tfvars` and the upload-on-save configs every editor grew
+(`.ftpconfig`, `sftp-config.json`, `.remote-sync.json`) are judged on what is
+in them: an `.npmrc` saying `ignore-scripts=true` is not a leak, and a
 committed `.env` of documented defaults is a template. Both of those were real
 false positives, measured against a public repository of Compose examples.
+
+The second half of that list came from pointing the scanner at a repository
+built to hold one of every kind of committed secret and reading what it did
+*not* say — which is the same programme as the precision rounds, run
+backwards.
 
 A password database -- `.kdbx`, `.psafe3`, a 1Password vault -- is the same rule
 at high severity. The file is encrypted, which is why it is not critical, and
