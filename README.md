@@ -356,6 +356,35 @@ a workload.
 pipeline. A value arriving through a variable is invisible, and the rules say
 so rather than implying coverage they do not have.
 
+## How this compares
+
+Three tools people already reach for, checked against what each one currently
+says about itself -- not from memory:
+
+| | bluerayscan | gitleaks | trufflehog | checkov |
+| --- | --- | --- | --- | --- |
+| Scope | secrets, CI/CD, Kubernetes, Terraform, CloudFormation, containers, dependencies, application-code idioms, git history -- 16 families, 145 rules | secrets only | secrets only | IaC and compliance (Terraform, CloudFormation, Kubernetes, Helm, Dockerfile, Bicep, ARM, and more), plus SCA and its own secrets scanner |
+| Runtime | Python standard library, zero dependencies | compiled Go binary | compiled Go binary | Python, with a real dependency tree |
+| Credential verification | none -- reports what looks like a secret, does not call out to confirm it | none | yes -- calls the API a credential belongs to, reports verified / unverified / unknown | none |
+| IaC rule depth | Terraform 8, Kubernetes 12, CloudFormation 6 -- narrow, reviewer-focused checks | none | none | 1,000+ built-in compliance policies -- checkov is the deeper tool here, not us |
+| SCA (known-CVE dependency/image scanning) | not attempted | no | no | yes |
+| License | MIT | MIT | AGPL-3.0 | Apache-2.0 |
+
+Credential verification is the sharpest gap: trufflehog can tell you a secret
+is *live*; bluerayscan cannot, because it has no network access by design --
+the same reason it never grows past the standard library. checkov's IaC policy
+set is an order of magnitude larger, because compliance frameworks are its
+whole job; bluerayscan's Terraform and Kubernetes rules exist to catch what a
+reviewer would flag by eye, not to enforce CIS or SOC 2 benchmarks. Neither
+gitleaks nor trufflehog reads CI/CD workflows, Terraform or Kubernetes at all.
+As of this writing, gitleaks says of itself that it is "feature complete" --
+the maintainer has stopped merging new features and is moving new work to a
+successor project, though patch releases continue.
+
+What none of the three do: read secrets, CI/CD, Kubernetes, Terraform,
+CloudFormation, containers, dependencies and application-code idioms together,
+from one install that adds nothing beyond Python's own standard library.
+
 ## Project defaults
 
 Every project that adopts a scanner ends up with a preferred invocation. Putting

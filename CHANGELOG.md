@@ -4,6 +4,15 @@ All notable changes to BlueRayScan. This project follows [semantic
 versioning](https://semver.org/); until 1.0 the minor number carries breaking
 changes.
 
+## Unreleased
+
+### Added
+
+- **A "How this compares" table**, against gitleaks, trufflehog and checkov,
+  checked against what each project currently says about itself rather than
+  written from memory: scope, runtime, credential verification, IaC rule
+  depth, SCA, and license.
+
 ## 0.4.0 - 2026-09-20
 
 ### Added
