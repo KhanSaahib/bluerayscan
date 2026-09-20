@@ -4,7 +4,7 @@ All notable changes to BlueRayScan. This project follows [semantic
 versioning](https://semver.org/); until 1.0 the minor number carries breaking
 changes.
 
-## Unreleased
+## 0.4.0 - 2026-09-20
 
 ### Added
 
@@ -329,8 +329,6 @@ manager. terragoat and kubernetes-goat are unchanged.
   the legitimate use of formatting in a query has exactly the shape the rule
   looks for. The rest are recorded with their numbers so nobody measures them
   twice.
-
-## 0.4.0 - 2026-09-13
 
 ### Added
 
