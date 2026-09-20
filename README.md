@@ -144,6 +144,27 @@ one-line CI gate:
 - run: pipx run bluerayscan scan . --fail-on high
 ```
 
+On GitHub Actions specifically, the same gate is the
+[Marketplace action](https://github.com/marketplace/actions/bluerayscan) --
+no `pipx`, nothing else pinned in the workflow, and no permissions or secrets
+beyond the checkout every workflow already needs:
+
+```yaml
+# .github/workflows/bluerayscan.yml
+on: [pull_request]
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: KhanSaahib/bluerayscan@v0.4.0
+        with:
+          fail-on: high
+```
+
+Paste that in and it runs. SARIF upload, pull request annotations and the
+other output formats are their own, larger examples, below.
+
 Sample output:
 
 ```
